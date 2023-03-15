@@ -1,0 +1,77 @@
+#include <stdio.h>
+#include <stdlib.h>
+#define STACK_SIZE 10
+
+int* stack;
+int top = -1;               // top 초기화
+int size = 1;
+
+int isEmpty() {
+	if (top == -1) return 1;
+	else return 0;
+}
+
+int isFull() {
+	if (top % STACK_SIZE == 9) return 1;
+	else return 0;
+}
+
+// 스택의 top에 원소를 삽입하는 연산
+void push(int item) {
+	int* temp;
+
+	if (isFull()) {
+		printf(" Full STACK\n");
+		temp = (int*)malloc((STACK_SIZE * size) * sizeof(int));
+
+		for (int i = 0; i < (top + 1); i++) temp[i] = stack[i];
+		stack = (int*)malloc((STACK_SIZE * (size + 1)) * sizeof(int));
+
+		for (int i = 0; i < (top + 1); i++) stack[i] = temp[i];
+		stack[++top] = item;  // top을 증가시킨 후 현재 top에 원소 삽입
+
+		size++;
+
+		free(temp);
+
+	}
+	else stack[++top] = item;  // top을 증가시킨 후 현재 top에 원소 삽입
+}
+
+// 스택의 원소를 출력하는 연산
+void printStack() {
+	int i;
+	printf(" STACK SIZE [%d]\n", (STACK_SIZE * size));
+	printf("\n STACK [ ");
+	for (i = 0; i <= top; i++) printf("%d ", stack[i]);
+	printf("]\n");
+}
+
+int pop(int* stack)
+{
+	return stack[top--];
+}
+
+int insert(int* stack, int where, int num)
+{
+	for (int i = top; i > where - 1; i--)
+	{
+		stack[i+1] = stack[i];
+	}
+	stack[where ] = num;
+	top++;
+	return num;
+}
+
+void main(void) {
+	int i;
+	stack = (int*)malloc(STACK_SIZE * sizeof(int));
+	for (i = 0; i < 44; i++) push(i + 1);
+	printStack();
+	for (i = 0; i < 7; i++) printf(" POP Data [%d]\n", pop(stack));
+	printStack();
+	for (i = 5; i < 10; i++) printf(" insert Data [%d]\n", insert(stack,i,i+100));
+	printStack();
+	free(stack);
+	getchar();
+}
