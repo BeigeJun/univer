@@ -47,9 +47,33 @@ void printStack() {
 	printf("]\n");
 }
 
-int pop(int* stack)
+int poptop(int* stack)
 {
-	return stack[top--];
+	if (top == -1 || top == 0)
+	{
+		printf("empty");
+		return 0;
+	}
+	else
+	{
+		return stack[top--];
+	}
+}
+
+void pop(int* stack, int num)
+{
+	if (top < num)
+	{
+		printf("%d 번째는 비었습니다.");
+	}
+	else
+	{
+		for (int j = num; j <= top; j++)
+		{
+			stack[j] = stack[j+1];
+		}
+		stack[top--] = NULL;
+	}
 }
 
 int insert(int* stack, int where, int num)
@@ -68,8 +92,18 @@ void main(void) {
 	stack = (int*)malloc(STACK_SIZE * sizeof(int));
 	for (i = 0; i < 44; i++) push(i + 1);
 	printStack();
-	for (i = 0; i < 7; i++) printf(" POP Data [%d]\n", pop(stack));
+
+	for (i = 0; i < 7; i++) printf(" POP Data [%d]\n", poptop(stack));
 	printStack();
+
+	for (int s = 3; s < 8; s++)
+	{
+		printf(" POP Data [%d]\n", stack[3]);
+		pop(stack, 3);
+	}
+
+	printStack();
+
 	for (i = 5; i < 10; i++) printf(" insert Data [%d] at [%d] \n", insert(stack,i,i+100), i+1);
 	printStack();
 	free(stack);
