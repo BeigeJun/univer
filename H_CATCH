@@ -4,6 +4,16 @@
 #include <stdlib.h>
 #define BSIZE 20
 
+void CALLBACK TimerProc(HWND hWnd, UINT uMsg, UINT idEvent, DWORD dwTime)
+{
+	HDC hdc;
+	int i;
+	hdc=GetDC(hWnd);
+	for (i=0;i<100;i++) 
+		SetPixel(hdc,rand()%500, rand()%400,
+		RGB(rand()%256,rand()%256,rand()%256,));
+	ReleaseDC(hWnd, hdc);
+}
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, 
          WPARAM wParam, LPARAM lParam);
@@ -88,7 +98,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
    {
    case WM_CREATE:
      check=FALSE;
-     SetTimer(hwnd,1,1000,NULL); //1번 타이머, 인자는 4개, hwnd : 현재 윈도우 시간, 5초에 한번씩
+     SetTimer(hwnd,1,2000,NULL); //1번 타이머, 인자는 4개, hwnd : 현재 윈도우 시간, 5초에 한번씩
      break;
 
 
@@ -103,13 +113,16 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 
    case WM_PAINT:
       hdc = BeginPaint(hwnd, &ps);
-      
+      Rectangle(hdc,x1-7,y1-7,x1+7,y1+7);
       if(check==TRUE){
          SetTextColor(hdc, RGB(255, 0, 0));
          TextOut(hdc,x,y,"H",1);
+		 TextOut(hdc,550,550,"Succes",6);
+		 EndPaint(hwnd,&ps);
+         break;
       }
       TextOut(hdc,x,y,"H",1);
-      
+      TextOut(hdc,550,550,"FALSE ",6);
        EndPaint(hwnd,&ps);
        break;
 
