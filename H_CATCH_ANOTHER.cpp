@@ -75,10 +75,17 @@ bool correct(int x, int y, int x1, int y1) {
 static int x = 0, y = 0; bool check = FALSE;
 void CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime)
 {
-	x=rand()%600;
-    y=rand()%600;
-	TextOut(hdc,x,y,"H",1);
-	InvalidateRect(hwnd, NULL, TRUE);
+	HDC hdc;
+	int i;
+	hdc=GetDC(hwnd);
+	for(int i = 0 ; i < 10 ; i ++)
+	{
+
+		x=rand()%600;
+		y=rand()%600;
+		TextOut(hdc,x,y,"H",1);
+	}
+		ReleaseDC(hwnd, hdc);
 }
 
 LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)     
@@ -92,7 +99,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
    {
    case WM_CREATE:
      check=FALSE;
-     SetTimer(hwnd,1,1000,(TIMERPROC)TimerProc); //1번 타이머, 인자는 4개, hwnd : 현재 윈도우 시간, 5초에 한번씩
+	 for(int i = 0 ; i < 10 ; i ++)
+	 {
+		 x=rand()%600;
+		 y=rand()%600;
+		 TextOut(hdc,x,y,"H",1);
+	 }
      break;
 
 
