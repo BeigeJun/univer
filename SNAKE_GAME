@@ -1,7 +1,5 @@
 #include <windows.h>
-#include <WindowsX.h>
-#include <math.h>
-#include <stdlib.h>
+
 #define BSIZE 20
 
 
@@ -72,7 +70,7 @@ bool correct(int x, int y, int x1, int y1) {
       return FALSE;
    }
 }
-static int x = 0, y = 0; bool check = FALSE;
+static int x = 0, y = 0;
 void CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime)
 {
 	HDC hdc;
@@ -87,69 +85,118 @@ void CALLBACK TimerProc(HWND hwnd, UINT uMsg, UINT idEvent, DWORD dwTime)
 	}
 		ReleaseDC(hwnd, hdc);
 }
-
+static int FOOD_X[9] = {0,};
+static int FOOD_Y[9] = {0,};
+static int xx = 0;
+static TCHAR SCORE[1] = {0,};
+static int x1 = 400;
+static int y1 = 400; 
+static bool check,check1;
+static int MOVE =0;
 LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)     
 {
 
    PAINTSTRUCT ps;
-   static bool check;
    static int x1,y1;
 
    switch (iMsg) 
    {
    case WM_CREATE:
+	 SetTimer(hwnd, 1, 500, NULL); // 1초에 한 번
+	 SetTimer(hwnd, 2, 500, NULL); // 1초에 한 번
      check=FALSE;
+
 	 for(int i = 0 ; i < 10 ; i ++)
 	 {
-		 x=rand()%600;
-		 y=rand()%600;
-		 TextOut(hdc,x,y,"H",1);
+		 x=rand()%400;
+		 y=rand()%400;
+		 FOOD_X[i] = x;
+		 FOOD_Y[i] = y;
 	 }
+	 xx = 0;
      break;
+	  case WM_TIMER:
+	  if(x1 < 10 || x1 > 550)
+	  {
+		if(wParam == 1)
+		{
+		  if(MOVE == 1)
+		  {
+			  x1 = x1 - 10;
+		  }
+		  else if(MOVE == 2)
+		  {
+			  x1 = x1 + 10;
+		  }
+		}
+		else
+		{
+		  if(MOVE ==3)
+		  {
+			  y1 = y1 - 10;
+		  }
+		  else if(MOVE ==4)
+		  {
+			  y1 = y1 + 10;
+		  }
+	    }
+
+	  }
+	  MessageBox(hwnd, TEXT("게임 끝"),TEXT("메시지 박스"),MB_YESNO);
+	  PostQuitMessage(0);
+	  break;
+
+
+      InvalidateRect(hwnd, NULL, FALSE);
+      break;
+
+	 case WM_KEYDOWN:
+		switch(wParam){
+			case VK_LEFT:       // Left arrow
+				MOVE =1;
+				InvalidateRect(hwnd, NULL, TRUE);
+				break; 
+ 
+			case VK_RIGHT:      // Right arrow
+				MOVE = 2;
+				InvalidateRect(hwnd, NULL, TRUE);
+				break; 
+ 
+			case VK_UP:         // Up arrow 
+				MOVE =3;
+				InvalidateRect(hwnd, NULL, TRUE);
+				break; 
+ 
+			case VK_DOWN:       // Down arrow 
+				MOVE = 4;
+				InvalidateRect(hwnd, NULL, TRUE);
+				break; 
+			}
 
 
 
 
    case WM_PAINT:
       hdc = BeginPaint(hwnd, &ps);
+	  Rectangle(hdc,0,0,550,550);
       Rectangle(hdc,x1-7,y1-7,x1+7,y1+7);
+	  for(int i = 0 ; i < 10 ; i++)
+	  {
+		  TextOut(hdc,FOOD_X[i],FOOD_Y[i],"0",1);
+	  }
       if(check==TRUE){
-         SetTextColor(hdc, RGB(255, 0, 0));
-		 TextOut(hdc,x,y,"H",1);
-		 TextOut(hdc,550,550,"Succes",6);
 		 check = FALSE;
+		 wsprintf(SCORE,TEXT("%d 점"),xx);
+		 TextOut(hdc,400,550,SCORE,lstrlen(SCORE));
 		 EndPaint(hwnd,&ps);
          break;
       }
-	  TextOut(hdc,x,y,"H",1);
-      TextOut(hdc,550,550,"FALSE ",6);
+      wsprintf(SCORE,TEXT("%d 점"),xx);
+	  TextOut(hdc,400,550,SCORE,lstrlen(SCORE));
       EndPaint(hwnd,&ps);
       break;
 
    
-
-   case WM_LBUTTONDOWN:
-      x1=LOWORD(lParam);
-      y1=HIWORD(lParam);
-
-      
-      if(correct(x,y,x1,y1)){
-      check=TRUE;
-      }
-	  else
-		  check = FALSE;
-      InvalidateRect(hwnd, NULL,TRUE);
-      break;
-    /*  
-   case WM_LBUTTONUP:
-      check=FALSE;
-      InvalidateRect(hwnd, NULL, TRUE);
-      break;
-	  */
-   
-
-  
-
    case WM_DESTROY:
       PostQuitMessage(0);
       break;
