@@ -1,0 +1,147 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#define QUEUE_SIZE 10
+
+int*  queue;
+int   front = 0;
+int   rear = 0;
+int   size = 1;
+
+int isEmpty() {
+    if (front == rear) 
+        return 1;
+    else 
+        return 0;
+}
+
+int isFull() {
+    if (front == (rear + 1) % (QUEUE_SIZE * size)) 
+        return 1;
+    else 
+        return 0;
+}
+
+int queueSize() {
+    return(rear - front + (QUEUE_SIZE * size)) % (QUEUE_SIZE * size);
+}
+
+void enqueue(int item) {
+    int* temp;
+
+    if (isFull()) {
+        temp = (int*)malloc((QUEUE_SIZE * size) * sizeof(int));
+        int i = 1;
+        if (front > rear) {
+            for (int j = front + 1; j < QUEUE_SIZE * size; j++)   
+                temp[i++] = queue[j];
+            for (int j = 0; j <= rear; j++)    
+                temp[i++] = queue[j];
+        }
+        else {
+            for (int j = front + 1; j <= rear; j++) 
+                temp[i++] = queue[j];
+        }
+        size++;
+        queue = (int*)malloc((QUEUE_SIZE * size) * sizeof(int));
+        for (i = 1; i <= QUEUE_SIZE * (size - 1); i++) 
+            queue[i] = temp[i];
+        front = 0;
+        rear = QUEUE_SIZE * (size - 1) - 1;
+        queue[++rear] = item;
+        free(temp);
+    }
+    else {
+        rear = (rear + 1) % (QUEUE_SIZE * size);
+        queue[rear] = item;
+    }
+}
+
+void dequeue() {
+    if (isEmpty()) {
+        printf("Queue is Empty!!\n");
+    }
+    else {
+        if (abs(front - rear) <= QUEUE_SIZE * (size - 1)) {
+            if (front > rear) {
+
+                front = (front + 1) % (QUEUE_SIZE * size);
+
+                int i = 1;
+
+                int* temp = (int*)malloc(QUEUE_SIZE * (size - 1) * sizeof(int));
+
+                for (int j = front + 1; j < QUEUE_SIZE * (size - 1); j++)
+                    temp[i++] = queue[j];
+
+                queue = (int*)malloc(QUEUE_SIZE * (size - 1) * sizeof(int));
+
+                for (int j = 0; j <= rear; j++) 
+                    temp[i++] = queue[j];
+
+                for (i = 1; i < QUEUE_SIZE * (size - 1); i++) queue[i] = temp[i];
+                size--;
+                front = 0;
+                rear = QUEUE_SIZE * size - 1;
+
+                free(temp);
+            }
+            else {
+                front = (front + 1) % (QUEUE_SIZE * size);
+                int i = 1, count = 0;
+                int* temp = (int*)malloc(QUEUE_SIZE * (size - 1) * sizeof(int));
+                for (int j = front + 1; j <= rear; j++) 
+                { 
+                    temp[i++] = queue[j];
+                    count++; 
+                }
+
+                queue = (int*)malloc(QUEUE_SIZE * (size - 1) * sizeof(int));
+
+                for (i = 1; i < QUEUE_SIZE * (size - 1); i++)
+                    queue[i] = temp[i];
+                size--;
+                front = 0;
+                rear = QUEUE_SIZE * size - 1;
+
+                free(temp);
+            }
+        }
+        else {
+            front = (front + 1) % (QUEUE_SIZE * size);
+        }
+    }
+}
+
+void printQueue() {
+    if (isEmpty()) {
+        printf("\n Queue is Empty!!\n\n");
+    }
+    else {
+        int i, maxi = rear;
+        if (front >= rear) maxi += (QUEUE_SIZE * size);
+        printf("Queue size is [%2d]= ", queueSize());
+        for (i = front + 1; i <= maxi; i++)
+            printf("%2d ", queue[i % (QUEUE_SIZE * size)]);
+        printf("\n");
+    }
+}
+
+int main(void) {
+    int i;
+    queue = (int*)malloc((QUEUE_SIZE * size) * sizeof(int));
+
+    for (i = 0; i < 9; i++) enqueue(i + 1);
+    printQueue();
+    for (i = 0; i < 11; i++) enqueue(i + 1);
+    printQueue();
+    for (i = 0; i < 18; i++) dequeue();
+    printQueue();
+    for (i = 0; i < 5; i++) enqueue(i + 1);
+    printQueue();
+    for (i = 0; i < 4; i++) dequeue();
+    printQueue();
+
+    free(queue);
+    return 0;
+}
