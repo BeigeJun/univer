@@ -106,8 +106,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
    switch (iMsg) 
    {
    case WM_CREATE:
-    SetTimer(hwnd, 1, 500, NULL); // 1초에 한 번
-	check=FALSE;
 
     for(int i = 0 ; i < 10 ; i ++)
     {
@@ -116,6 +114,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
        FOOD_X[i] = x;
        FOOD_Y[i] = y;
     }
+	
      break;
 
      case WM_TIMER:
@@ -129,11 +128,11 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
         {
            x1 = x1 + 15;
         }
-        else if(MOVE ==3)
+        else if(MOVE == 3)
         {
            y1 = y1 - 15;
         }
-        else if(MOVE ==4)
+        else if(MOVE == 4)
         {
            y1 = y1 + 15;
         }
@@ -145,32 +144,49 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
       switch(wParam){
          case VK_LEFT:       // Left arrow
             MOVE =1;
-            InvalidateRect(hwnd, NULL, TRUE);
+            //InvalidateRect(hwnd, NULL, TRUE);
             break; 
  
          case VK_RIGHT:      // Right arrow
             MOVE = 2;
-            InvalidateRect(hwnd, NULL, TRUE);
+            //InvalidateRect(hwnd, NULL, TRUE);
             break; 
  
          case VK_UP:         // Up arrow 
             MOVE =3;
-            InvalidateRect(hwnd, NULL, TRUE);
+            //InvalidateRect(hwnd, NULL, TRUE);
             break; 
  
          case VK_DOWN:       // Down arrow 
             MOVE = 4;
-            InvalidateRect(hwnd, NULL, TRUE);
+            //InvalidateRect(hwnd, NULL, TRUE);
             break; 
-         }
 
+		 
+       }
 
+	  case WM_CHAR:
+      {
+         if (wParam == 'S') {
+         SetTimer(hwnd, 1, 500, NULL); // 1초에 한 번
+		 check=FALSE;
+	     }
+
+		 if(wParam == 'E'){
+         KillTimer(hwnd, 1);
+		 int aswer;
+		 aswer = MessageBox(hwnd, TEXT("게임 끝"),TEXT("메시지 박스"),MB_YESNO);
+		 switch(aswer)
+		  case IDYES:
+			PostQuitMessage(0);
+         break;
+		 }
+	 }
 
 
    case WM_PAINT:
 	  if(xx==11)
-	  {	   BODY_X[0] = x1;
-		   BODY_Y[0] = y1;
+	  {	   KillTimer(hwnd, 1);
 		   int aswer;
 		   aswer = MessageBox(hwnd, TEXT("게임 끝"),TEXT("메시지 박스"),MB_YESNO);
 		   switch(aswer)
