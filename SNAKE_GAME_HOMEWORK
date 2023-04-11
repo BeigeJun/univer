@@ -132,7 +132,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
         {
            y1 = y1 - 15;
         }
-        else if(MOVE == 4)
+        else if(MOVE ==4)
         {
            y1 = y1 + 15;
         }
@@ -168,7 +168,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	  case WM_CHAR:
       {
          if (wParam == 'S') {
-         SetTimer(hwnd, 1, 500, NULL); // 1초에 한 번
+         SetTimer(hwnd, 1, 100, NULL); // 1초에 한 번
 		 check=FALSE;
 	     }
 
@@ -216,6 +216,12 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
         else
          check = FALSE;
      }
+
+	 if(body == 1){
+		 Rectangle(hdc,BODY_X[0]-7,BODY_Y[0]-7,BODY_X[0]+7,BODY_Y[0]+7);
+		 body++;
+	 }
+	 else{
 	 for(int i = body; i >= 1 ; i--)
      {
 	  BODY_X[i] = BODY_X[i-1];
@@ -224,18 +230,19 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
 	  if(body != 10)
 		  body++;
      }
+	 }
 
      
 
       if(check==TRUE){
        check = FALSE;
        wsprintf(SCORE,TEXT("%d 점"),xx-1);
-       TextOut(hdc,400,550,SCORE,lstrlen(SCORE));
+       TextOut(hdc,450,30,SCORE,lstrlen(SCORE));
        break;
       }
 	  else{
       wsprintf(SCORE,TEXT("%d 점"),xx-1);
-      TextOut(hdc,400,550,SCORE,lstrlen(SCORE));
+      TextOut(hdc,450,30,SCORE,lstrlen(SCORE));
 	  }
 
 	  EndPaint(hwnd,&ps);
