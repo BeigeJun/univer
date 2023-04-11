@@ -261,6 +261,8 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
        check = FALSE;
        wsprintf(SCORE,TEXT("%d 점"),xx-1);
        TextOut(hdc,450,30,SCORE,lstrlen(SCORE));
+
+	   EndPaint(hwnd,&ps);
        break;
       }
 	  else{
