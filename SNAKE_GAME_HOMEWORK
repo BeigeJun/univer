@@ -1,5 +1,5 @@
 #include <windows.h>
-
+#include "resource.h"
 #define BSIZE 20
 
 
@@ -23,7 +23,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, //WINAPI : 윈�
    WndClass.hIcon         = LoadIcon(NULL, IDI_APPLICATION);    //아이콘 유형
    WndClass.hCursor      = LoadCursor(NULL, IDC_ARROW);       //커서 유형
    WndClass.hbrBackground   = (HBRUSH)GetStockObject(WHITE_BRUSH);//배경색   
-   WndClass.lpszMenuName   = NULL;                         //메뉴 이름
+   WndClass.lpszMenuName   = MAKEINTRESOURCE(IDR_MENU1);                         //메뉴 이름
    WndClass.lpszClassName   = lpszClass;                   //클래스 이름
    RegisterClass(&WndClass);                            //앞서 정의한 윈도우 클래스의 주소
 
@@ -116,6 +116,29 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
     }
 	
      break;
+
+	  case WM_COMMAND:
+		switch(LOWORD(wParam)){
+
+		case ID_MEUN_START:
+			SetTimer(hwnd, 1, 100, NULL); // 1초에 한 번
+			check=FALSE;
+			InvalidateRect(hwnd, NULL,TRUE);
+			break;
+
+		case ID_MEUN_END :
+			 KillTimer(hwnd, 1);
+			 int aswer;
+			 aswer = MessageBox(hwnd, TEXT("게임 끝"),TEXT("메시지 박스"),MB_YESNO);
+			 switch(aswer)
+			 case IDYES:
+				PostQuitMessage(0);
+			 break;
+
+	
+
+		}
+
 
      case WM_TIMER:
       if(wParam == 1)
