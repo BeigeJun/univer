@@ -1,1 +1,327 @@
-.
+#include <windows.h>
+#include <stdio.h>
+#include "resource.h"
+
+LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, 
+         WPARAM wParam, LPARAM lParam);
+
+
+LPCTSTR lpszClass = TEXT("Window System Program Exam");
+
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, 
+         LPSTR lpszCmdLine, int nCmdShow)
+{
+   HWND   hwnd;
+   MSG      msg;
+   WNDCLASS WndClass;   
+   WndClass.style         = CS_HREDRAW | CS_VREDRAW;
+   WndClass.lpfnWndProc   = WndProc;      
+   WndClass.cbClsExtra      = 0;      
+   WndClass.cbWndExtra      = 0;      
+   WndClass.hInstance      = hInstance;      
+   WndClass.hIcon         = LoadIcon(NULL, IDI_APPLICATION);
+   WndClass.hCursor      = LoadCursor(NULL, IDC_ARROW);   
+   //WndClass.hbrBackground   = CreateSolidBrush(RGB(0,255,0));
+   WndClass.hbrBackground   = (HBRUSH)GetStockObject(WHITE_BRUSH);
+   WndClass.lpszMenuName   = MAKEINTRESOURCE(IDR_MENU1);      
+   WndClass.lpszClassName   = lpszClass;   
+   RegisterClass(&WndClass);   
+
+   hwnd = CreateWindow(lpszClass,
+      lpszClass,
+      WS_OVERLAPPEDWINDOW,
+      100,   
+      50,   
+      400,   
+      500,   
+      NULL,   
+      NULL,   
+      hInstance,   
+      NULL    
+   );
+   ShowWindow(hwnd, nCmdShow);
+   UpdateWindow(hwnd);
+
+   while(GetMessage(&msg, NULL, 0, 0))
+   {
+      TranslateMessage(&msg);   
+      DispatchMessage(&msg);   
+   }   
+   return (int)msg.wParam;
+}
+
+void make_row(HDC hdc){ //가로줄
+   for (int i = 1; i <= 360 / 10; ++i) {
+      MoveToEx(hdc, 0, i * 10, nullptr); 
+      LineTo(hdc, 360, i * 10); 
+   }
+}
+
+void make_col(HDC hdc){ //세로줄
+   for (int i = 1; i <= 360 / 10; ++i) {
+      MoveToEx(hdc, i*10, 0, nullptr); 
+      LineTo(hdc, i*10, 360); 
+   }
+}
+
+void make_M(HDC hdc,int x,int y){
+   TextOut(hdc,x,y,"M",1);
+}
+
+
+int hit[36] = {0,};
+RECT rt;
+int move;
+int x1 = 150 ;
+int y1 = 350 ;
+LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, 
+          WPARAM wParam, LPARAM lParam)     
+{
+   HDC hdc;
+   PAINTSTRUCT ps;
+   static COLORREF fColor;
+   static int hour,min,sec;
+   static int x,y; //M 좌표
+   static int bar_x, bar_y;
+   static int meet; //만났다는 플래그
+   static int meet_m;
+   static RECT temp;
+   static int bar_left=310 ,bar_top=240 ,bar_right=320 ,bar_bottom=260;
+   static RECT rc2={bar_left, bar_top,bar_right, bar_bottom};
+   //하단바
+
+   //M 글자를 감싸는 RECT
+   static int left=310, top=120, right=320, bottom=135; 
+   static RECT M={left,top,right,bottom};
+   static int speed =10;
+
+   //Rect(hdc,left,top,right,bottom)x`
+   //시작좌표(left,top) 끝좌표(right,bottom)
+
+
+
+   switch (iMsg) 
+   {
+   case WM_CREATE:
+      hour=min=sec=0;
+      meet=0;
+     move = 1;
+      x=120;
+      y=120;
+      fColor = RGB(0,0,0);
+      SetTimer(hwnd,1,100,NULL); //2번문제 초
+
+     rt.bottom = HIWORD(lParam);
+     rt.right = LOWORD(lParam);
+     rt.top = 0;
+     rt.left = 0;
+      break;
+
+   
+   case WM_TIMER:
+      switch(wParam){
+      case 1:
+         sec++;
+         if(sec==60){
+            min++;
+            sec=0;
+         }
+         if(min==60){
+            hour++;
+            min=0;
+         }
+         InvalidateRect(hwnd, NULL, TRUE);
+         break;
+      case 2:
+        if (move == 1)
+         {
+            x += 5;
+            y += 5;
+            if (y >= 320)
+               if(x1>x && x1<x+20){
+                  move = 2;
+                  break;
+               }
+            if(y==360){
+               MessageBox(hwnd,"충돌!","Sorry!",MB_OK);
+               PostQuitMessage(0);
+             //MessageBox(hwnd, "마우스 왼쪽 버튼을 눌렀습니다","메시지 박스",MB_OK);
+            }
+            
+         }
+         else if (move == 2)
+         {
+            x += 5;
+            y -= 5;
+            if(y<=10)
+            {
+               int a=0;
+               for(int i = 0; i < 360; i+=10){
+                  if(i<x)
+                     a++;
+               }
+               hit[a] = 1;
+               move = 1;
+            }
+            if (x+1 >= 340)
+               move = 3;
+            if (y-1 <= 0)
+               move = 1;
+         }
+         else if (move == 3)
+         {
+            x -= 5;
+            y -= 5;
+            if(y<=10)
+            {
+               int a=0;
+               for(int i = 0; i < 360; i+=10){
+                  if(i<x)
+                     a++;
+               }
+               hit[a] = 1;
+               move = 4;
+            }
+            if (x-1 <= 10)
+               move = 2;
+            if (y-1 <= 0)
+               move = 4;
+         }
+         else if (move == 4)
+         {
+            x -= 5;
+            y += 5;
+            if (y >= 320)
+               if(x1>x && x1<x+20){
+                  move = 2;
+                  break;
+               }
+            if(y==360){
+               MessageBox(hwnd,"충돌!","Sorry!",MB_OK);
+               PostQuitMessage(0);
+             //MessageBox(hwnd, "마우스 왼쪽 버튼을 눌렀습니다","메시지 박스",MB_OK);
+            }
+            if (x-1 <= 0)
+               move = 1;
+         }
+         /*if(meet==0){
+            x+=1;
+            y+=2;
+            M.left+=1;
+            M.right+=1;
+            M.top+=2;
+            M.bottom+=2;
+            if(y==240){
+               MessageBox(hwnd,"충돌!","Sorry!",MB_OK);
+               PostQuitMessage(0);
+               //MessageBox(hwnd, "마우스 왼쪽 버튼을 눌렀습니다","메시지 박스",MB_OK);
+            }
+            if((IntersectRect(&temp,&M,&rc2))){ //bar, 문자 충돌 처리
+               meet=1;
+            }
+            if((IntersectRect(&temp,&M,&rc1))){
+               meet=2;
+            }
+         }
+         else if(meet==1){
+            x-=1;
+            y-=2;
+            M.left-=1;
+            M.right-=1;
+            M.top-=2;
+            M.bottom-=2;
+         if(y==10)
+         {
+            int a = x/20;
+            hit[a] = 1;
+            meet = 0;
+         }
+         }
+         else if(meet==2){
+            x-=1;
+            y+=2;
+            M.left-=1;
+            M.right-=1;
+            M.top+=2;
+            M.bottom+=2;
+         if(y==10)
+         {
+            int a = x/20;
+            hit[a] = 1;
+            meet = 0;
+         }
+         }
+
+         InvalidateRect(hwnd,NULL,TRUE);
+         break;
+      }
+     */
+      break;
+     }
+   case WM_LBUTTONDOWN:
+      SetTimer(hwnd, 2, 70, NULL);
+      break;
+   case WM_RBUTTONDOWN:
+     MessageBox(hwnd,"충돌!","Sorry!",MB_OK);
+      break;
+
+   case WM_KEYDOWN:
+      if(wParam ==VK_LEFT){
+         x1-=3;
+      }
+      else if(wParam == VK_RIGHT){
+         x1+=3;
+      }
+      InvalidateRect(hwnd,NULL,TRUE);
+      break;
+
+   case WM_PAINT:
+      hdc = BeginPaint(hwnd, &ps);
+      SetTextColor(hdc, fColor);
+      WCHAR str[15];
+      WCHAR rr[30];
+      WCHAR Mz[10];
+      //HBRUSH hNewBrush = CreateSolidBrush(RGB(0, 0, 255));
+      //HBRUSH hOldBrush=(HBRUSH)SelectObject(hdc,hNewBrush);
+     HBRUSH hbr;
+   HBRUSH hbrOld;
+
+      //시계 출력
+      wsprintfW(str,L"%2d/%2d/%2d",hour,min,sec);
+      TextOutW(hdc,570,230,str,8);
+
+      //3번문제 시작
+      //32x32 최상단 20개 블록 색깔 칠하기
+     hbr = CreateSolidBrush(RGB(0,255,0));
+     hbrOld = (HBRUSH)SelectObject(hdc,hbr);
+     for(int i = 0 ; i < 36; i++){
+        if(hit[i] !=1)
+         Rectangle(hdc,i*10,0,i*10+10,10);
+     }
+     hbr = (HBRUSH)SelectObject(hdc,hbrOld);
+
+      //32X32 만들기
+      make_row(hdc);
+      make_col(hdc);
+
+      //bar 만들기
+     hbr = CreateSolidBrush(RGB(0,0,255));
+     hbrOld = (HBRUSH)SelectObject(hdc,hbr);
+      Rectangle(hdc,x1-5,y1-5,x1+5,y1+5);
+     hbr = (HBRUSH)SelectObject(hdc,hbrOld);
+
+      //화면 중앙에 'M'을 적색으로 표시
+      SetTextColor(hdc,RGB(255,0,0,));
+      make_M(hdc,x,y);
+     DeleteObject(hbr);
+     DeleteObject(hbrOld);
+
+      EndPaint(hwnd, &ps);
+      break;
+
+   case WM_DESTROY:
+      PostQuitMessage(0);
+      break;
+   } 
+   return DefWindowProc(hwnd, iMsg, wParam, lParam); 
+}
