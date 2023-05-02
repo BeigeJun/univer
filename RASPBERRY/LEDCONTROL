@@ -1,0 +1,93 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <time.h>
+#define BUFSIZE 256
+
+int swc(int gpio){
+		int fd;
+		char buf[BUFSIZE];
+		char inCh;
+		
+		fd = open("/sys/class/gpio/export",O_WRONLY);
+		sprintf(buf,"%d",gpio);
+		write(fd,buf,strlen(buf));
+		close(fd);
+		
+		sprintf(buf,"/sys/class/gpio/gpio%d/direction",gpio);
+		fd = open(buf,O_WRONLY);
+		write(fd,"in",3);
+		close(fd);
+		
+		sprintf(buf,"/sys/class/gpio/gpio%d/value",gpio);
+		fd = open(buf,O_RDONLY); //WRONLY = write
+		
+		read(fd,&inCh,1);
+		
+		
+		//for(int i = 0 ; i < mode ; i ++)
+		//{
+		//	write(fd,"1",2);
+		//	sleep(1);
+		//	write(fd,"0",2);
+		//	sleep(1);
+		//}
+		close(fd);
+
+			
+		fd = open("/sys/class/gpio/unexport",O_WRONLY);
+		sprintf(buf,"%d",gpio);
+		write(fd,buf,strlen(buf));
+		close(fd);
+		
+		return (inCh-'0');
+}
+
+int ledControl(int gpio, int mode){
+		int fd;
+		char buf[BUFSIZE];
+		
+		fd = open("/sys/class/gpio/export",O_WRONLY);
+		sprintf(buf,"%d",gpio);
+		write(fd,buf,strlen(buf));
+		close(fd);
+		
+		sprintf(buf,"/sys/class/gpio/gpio%d/direction",gpio);
+		fd = open(buf,O_WRONLY);
+		write(fd,"out",4);
+		close(fd);
+		
+		sprintf(buf,"/sys/class/gpio/gpio%d/value",gpio);
+		fd = open(buf,O_WRONLY); //WRONLY = write
+		
+		write(fd,"in",3);
+		
+		if(mode == 0)
+			write(fd,"0",2);
+		else
+			write(fd,"1",2);
+		close(fd);
+
+			
+		fd = open("/sys/class/gpio/unexport",O_WRONLY);
+		sprintf(buf,"%d",gpio);
+		write(fd,buf,strlen(buf));
+		close(fd);
+		
+		return 0;
+}
+int main(int argc, char **argv){
+	char a;
+	while(1){
+	if(swc(20)==1)
+		ledControl(21,0);
+	else
+		ledControl(21,1);
+	a =getchar();
+	if(a == 'q')
+		break;
+	}
+	return 0;
+}
