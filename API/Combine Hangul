@@ -1,15 +1,29 @@
 #define _CRT_SECURE_NO_WARNINGS
-#include<stdio.h>
+#include <stdio.h>
+#include <wchar.h>
+#include <locale.h>
+int main() {
+    int chosung, jungsung, jongsung;
+    wchar_t unicode;
+    setlocale(LC_ALL, ""); // ?로 출력되는 현상 방지
 
-int main()
-{
-	int number, number_100, number_10, number_1;
-	char jauem[21] = "ㄱㄴㄷㄹㅁㅂㅅㅇㅈㅊ";
-	char mouem[21] = "ㅏㅑㅓㅕㅜㅠㅗㅛㅡㅣ";
-	scanf("%d", &number);
-	number_100 = number / 100;
-	number_10 = number % 100 / 10;
-	number_1 = number % 10;
-	printf("%d %d %d", number_100, number_10, number_1);
-	return 0;
+
+    printf("초성 숫자 입력: ");
+    scanf("%d", &chosung);
+    printf("중성 숫자 입력: ");
+    scanf("%d", &jungsung);
+    printf("종성 숫자 입력: ");
+    scanf("%d", &jongsung);
+
+    // 입력값 범위 체크
+    if (chosung < 0 || chosung > 19 ||
+        jungsung < 0 || jungsung > 21 ||
+        jongsung < 0 || jongsung > 27) {
+        printf("잘못된 입력입니다.\n");
+        return 1;
+    }
+
+    unicode = 0xAC00 + ((chosung-1) * 21 + (jungsung-1)) * 28 + (jongsung);
+    wprintf(L"%lc\n", unicode);
+    return 0;
 }
