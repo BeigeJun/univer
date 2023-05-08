@@ -1,0 +1,15 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include<stdio.h>
+
+int main()
+{
+	int number, number_100, number_10, number_1;
+	char jauem[21] = "ㄱㄴㄷㄹㅁㅂㅅㅇㅈㅊ";
+	char mouem[21] = "ㅏㅑㅓㅕㅜㅠㅗㅛㅡㅣ";
+	scanf("%d", &number);
+	number_100 = number / 100;
+	number_10 = number % 100 / 10;
+	number_1 = number % 10;
+	printf("%d %d %d", number_100, number_10, number_1);
+	return 0;
+}
