@@ -1,1 +1,83 @@
-시험끝나고 공개 예정
+#define _CRT_SECURE_NO_WARNINGS
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <windows.h>
+
+#define MAX_PATH_LENGTH 256
+
+int main() {
+    char driveLetter[4];
+    printf("포맷할 USB 드라이브의 알파벳을 입력하세요 (예: E:): ");
+    scanf("%s", driveLetter);
+
+    // 파일 검사를 위한 명령어
+    char fileCheckCommand[100];
+    sprintf(fileCheckCommand, "dir %s", driveLetter);
+
+    // USB 포맷 명령어
+    char formatCommand[100];
+    sprintf(formatCommand, "format %s /FS:FAT32 /Q /X", driveLetter);
+
+    // USB 내부 파일 확인
+    printf(" USB 안에 내부 파일을 확인합니다.");
+
+    if ((system(fileCheckCommand)) == 0) {
+        printf("파일이 있습니다.\n");
+        char removeCommand[100];
+        char remove_dir[100];
+
+        char search_path[MAX_PATH_LENGTH];
+        sprintf(search_path, "%s\\*", driveLetter);
+
+        WIN32_FIND_DATAA find_data;
+        HANDLE find_handle;
+
+        find_handle = FindFirstFileA(search_path, &find_data);
+        if (find_handle == INVALID_HANDLE_VALUE) {
+            printf("폴더를 열 수 없습니다.\n");
+            return 0;
+        }
+        int flag = 0;
+        do {
+            if (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+                if (strcmp(find_data.cFileName, ".") != 0 && strcmp(find_data.cFileName, "..") != 0) {
+                    if (flag == 1) {
+                        printf("[디렉토리] %s\n", find_data.cFileName);
+                        sprintf(removeCommand, "rmdir /s %s\\%s", driveLetter, find_data.cFileName);
+                        system(removeCommand);
+                    }
+                    flag = 1;
+                }
+            }
+            else {
+                printf("[파일] %s\n", find_data.cFileName);
+                sprintf(removeCommand, "del %s\\%s", driveLetter, find_data.cFileName);
+                system(removeCommand);
+            }
+        } while (FindNextFileA(find_handle, &find_data) != 0);
+
+        FindClose(find_handle);
+
+
+    }
+    else
+    {
+        printf("파일이 없습니다. 프로그램을 종료합니다.\n");
+        return 0;
+    }
+
+    printf("USB를 포맷하려면 'Y'를 입력하세요: ");
+    char confirm[2];
+    scanf("%s", confirm);
+
+    if (strcmp(confirm, "Y") == 0 || strcmp(confirm, "y") == 0) {
+        system(formatCommand);
+        printf("USB가 포맷되었습니다.\n");
+    }
+    else {
+        printf("포맷이 취소되었습니다.\n");
+    }
+
+    return 0;
+}
