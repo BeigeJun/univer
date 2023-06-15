@@ -1,0 +1,22 @@
+#include<Windows.h>
+#include<stdio.h>
+void main()//동적할당 256바이트
+{
+	char *tdata;
+
+	HANDLE Da;
+
+	Da = HeapCreate(HEAP_GENERATE_EXCEPTIONS, 0,256);
+
+	tdata = (char*)HeapAlloc(Da, HEAP_ZERO_MEMORY, sizeof(char) * 256);
+	
+	printf("%d\n\n", HeapSize(Da, HEAP_GENERATE_EXCEPTIONS, tdata));
+	for (int i = 0; i < 256; i++) {
+		tdata[i] = i;
+		printf("%d\n", tdata[i]);
+	}
+	
+	HeapFree(Da, 0, tdata);
+	HeapDestroy(Da);
+
+}
