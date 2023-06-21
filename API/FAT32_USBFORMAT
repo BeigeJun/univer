@@ -1,1 +1,702 @@
-//완성본 시험 이후 공개 예정
+#define _CRT_SECURE_NO_WARNINGS
+#include <Windows.h>
+#include <WinIoCtl.h>
+#include <devioctl.h>
+#include <ntddscsi.h>
+#include <stdlib.h>
+#include <string.h>
+#include <iostream> 
+#include <fstream>
+#include <tchar.h>
+
+volatile int progress = 0;
+int MBR_start_sector = 0;
+DWORD FatSize;
+int resvd_count;
+int cluster_offset = 10240;
+int upcasesize;
+int bitallcsize;
+BYTE clearbuff[51200] = { 0 };
+int fat32_fatoffset;
+
+
+struct _stCDB
+{
+    BYTE bCDB[16];
+};
+struct FAT32_BOOTSECTOR
+{
+    BYTE sJmpBoot[3];
+    CHAR sOEMName[8];
+    BYTE wBytsPerSec[2];
+    BYTE bSecPerClus;
+    WORD wRsvdSecCnt;            //WORD == 2 BYTE
+    BYTE bNumFATs;
+    BYTE wRootEntCnt[2];
+    BYTE wTotSec16[2];
+    BYTE bMedia;
+    WORD wFATSz16;
+    BYTE wSecPerTrk[2];
+    BYTE wNumHeads[2];
+    DWORD dHiddSec;              //DWORD == 4 BYTE
+    DWORD dTotSec32;
+    DWORD dFATSz32;
+    WORD wExtFlags;
+    WORD wFSVer;
+    DWORD dRootClus;
+    WORD wFSInfo;
+    WORD wBkBootSec;
+    BYTE Reserved[12];
+    BYTE bDrvNum;
+    BYTE Reserved1;
+    BYTE bBootSig;
+    DWORD dBS_VolID;
+    BYTE sVolLab[11];
+    BYTE sBS_FilSysType[8];
+};
+struct FAT32_FSINFO
+{
+    DWORD dLeadSig;              //0x41615252
+    BYTE sReserved1[480];        //zeros
+    DWORD dStrucSig;             //0x61417272
+    DWORD dFree_Count;           //0xFFFFFFFF
+    DWORD dNxt_Free;             //0xFFFFFFFF
+    BYTE sReserved2[12];         //zeros
+    DWORD dTrailSig;             //0xAA550000
+};
+struct ZERO_SECTOR
+{
+    DWORD RES1;
+    DWORD RES2;
+    DWORD RES3;
+    DWORD RES4;
+    DWORD RES5;
+    DWORD RES6;
+    DWORD RES7;
+    DWORD RES8;
+    DWORD RES9;
+    DWORD RES10;
+    DWORD RES11;
+    DWORD RES12;
+    DWORD RES13;
+    DWORD RES14;
+    DWORD RES15;
+    DWORD RES16;
+    DWORD RES17;
+    DWORD RES18;
+    DWORD RES19;
+    DWORD RES20;
+    BYTE ZERO[432];           //432 + 4 * 20 = 512
+};
+typedef struct _SCSI_PASS_THROUGH_DIRECT_WITH_REQSENSE
+{
+    SCSI_PASS_THROUGH_DIRECT sptd;
+    DWORD filler;                    // align abRequestSense to DWORD boundary
+    BYTE abRequestSense[24];
+
+}SCSI_PASS_THROUGH_DIRECT_WITH_REQSENSE, * PSCSI_PASS_THROUGH_DIRECT_WITH_REQSENSE;
+//define
+DWORD ScsiCmdSend(HANDLE hDev, _stCDB stCDB, BYTE bDirection, BYTE bCdbLen, void* pData, DWORD dwDataXferLen, DWORD dwTimeout = 60);
+bool read_value(HANDLE Dev, BYTE* read_buffer, int offset_sector, int read_size);
+bool write_value(HANDLE Dev, BYTE* write_data, int offset_sector, int write_size);
+bool format_main(std::string disk, int MBR, int FAT_type, int cluster_size, int reserved_offset);
+int read_disk_size(HANDLE dsk);
+DWORD get_volume_id();
+BYTE* FAT32_boot_sector_setting(HANDLE dsk, int cluster_size, int reserved_offset);
+BYTE* FAT32_fsinfo_sector_setting(HANDLE dsk, int usable_size, int free_count);
+BYTE* MBR_sector_setting(HANDLE dsk, int type);
+bool DeviceLock(HANDLE hDevice);
+bool DeviceUnLock(HANDLE hDevice);
+int init_disk(HANDLE dsk);
+DWORD GetFATSizeSectors(DWORD DskSize, DWORD ReservedSecCnt, DWORD SecPerClus, DWORD NumFATs, DWORD BytesPerSect);
+//Initialize File Entry
+BYTE* initFile(int c_size);
+BYTE* initFATfile(int bitallc_size, int upcase_size);
+BYTE* initBitfile(int bitallc_size, int upcase_size);
+
+DWORD ScsiCmdSend(HANDLE hDev, _stCDB stCDB, BYTE bDirection, BYTE bCdbLen, void* pData, DWORD dwDataXferLen, DWORD dwTimeout)
+{
+    SCSI_PASS_THROUGH_DIRECT_WITH_REQSENSE sptd;
+    BOOL xAPIStatus = FALSE;
+    BYTE abRequestSense[24] = { 0 };
+    DWORD dwByteReturn;
+    ZeroMemory(&sptd, sizeof(SCSI_PASS_THROUGH_DIRECT_WITH_REQSENSE));          //Use on MS Windows, implement by "void *memset(void *s,int ch,size_t n);"
+    sptd.sptd.Length = sizeof(SCSI_PASS_THROUGH_DIRECT);                        //Contains the value of sizeof(SCSI_PASS_THROUGH_DIRECT).
+    sptd.sptd.PathId = 0;                                                       //Indicates the SCSI port or bus for the request.
+    sptd.sptd.TargetId = 1;                                                     //Indicates the target controller or device on the bus.
+    sptd.sptd.Lun = 0;                                                          //Indicates the logical unit number of the device.
+    sptd.sptd.CdbLength = 10;                                                   //Indicates the size in bytes of the SCSI command descriptor block.
+    sptd.sptd.DataIn = (BYTE)bDirection;                                        //Indicates whether the SCSI command will read or write data.
+    sptd.sptd.SenseInfoLength = sizeof(sptd.abRequestSense);                    //Indicates the size in bytes of the request-sense buffer.
+    sptd.sptd.DataTransferLength = 512;                                         //Indicates the size in bytes of the data buffer.
+    sptd.sptd.TimeOutValue = 2;
+    sptd.sptd.DataBuffer = (pData == NULL) ? abRequestSense : pData;            //Pointer to the data buffer.
+    //sptd.sptd.DataBuffer = write_test;
+    sptd.sptd.SenseInfoOffset = offsetof(SCSI_PASS_THROUGH_DIRECT_WITH_REQSENSE, abRequestSense); //Indicates the size in bytes of the request-sense buffer.
+    int offset_sector = 2000;
+    int write_size = 512;
+    memcpy(sptd.sptd.Cdb, &stCDB, sizeof(sptd.sptd.Cdb));
+    xAPIStatus = DeviceIoControl(hDev,
+        IOCTL_SCSI_PASS_THROUGH_DIRECT,
+        &sptd,
+        sizeof(SCSI_PASS_THROUGH_DIRECT_WITH_REQSENSE),
+        &sptd,
+        sizeof(SCSI_PASS_THROUGH_DIRECT_WITH_REQSENSE),
+        &dwByteReturn,
+        FALSE);
+    if ((sptd.sptd.ScsiStatus == 0) && (xAPIStatus != 0))
+        return 0;
+    return GetLastError();
+}
+bool DeviceLock(HANDLE hDevice)
+{
+    DWORD dwBytesReturned;
+    if (0 == DeviceIoControl(hDevice, FSCTL_LOCK_VOLUME, NULL, 0, NULL, 0, &dwBytesReturned, NULL))
+        return false;
+    return true;
+}
+bool DeviceUnLock(HANDLE hDevice)
+{
+    DWORD dwBytesReturned;
+    if (0 == DeviceIoControl(hDevice, FSCTL_UNLOCK_VOLUME, NULL, 0, NULL, 0, &dwBytesReturned, NULL))
+        return false;
+    return true;
+}
+bool read_value(HANDLE Dev, BYTE* read_buffer, int offset_sector, int read_size) {
+    int iRet;
+    ULONG length = 0;
+    DWORD bytesReturn;
+    SCSI_PASS_THROUGH_DIRECT_WITH_REQSENSE sptdwb;
+    ZeroMemory(&sptdwb, sizeof(SCSI_PASS_THROUGH_DIRECT_WITH_REQSENSE));
+    sptdwb.sptd.Length = sizeof(SCSI_PASS_THROUGH_DIRECT);
+    sptdwb.sptd.PathId = 0;
+    sptdwb.sptd.TargetId = 1;
+    sptdwb.sptd.Lun = 0;
+    sptdwb.sptd.CdbLength = 10;
+    sptdwb.sptd.DataIn = SCSI_IOCTL_DATA_IN;
+    sptdwb.sptd.SenseInfoLength = 24;
+    sptdwb.sptd.DataTransferLength = 512;
+    sptdwb.sptd.TimeOutValue = 2;
+    sptdwb.sptd.DataBuffer = read_buffer;
+    sptdwb.sptd.SenseInfoOffset = offsetof(SCSI_PASS_THROUGH_DIRECT_WITH_REQSENSE, abRequestSense);
+    sptdwb.sptd.Cdb[0] = 0x28;        //opcode: Host read data from storage device
+    sptdwb.sptd.Cdb[1] = 0x00;
+    sptdwb.sptd.Cdb[2] = (offset_sector >> 24) & 0xff;
+    sptdwb.sptd.Cdb[3] = (offset_sector >> 16) & 0xff;
+    sptdwb.sptd.Cdb[4] = (offset_sector >> 8) & 0xff;
+    sptdwb.sptd.Cdb[5] = offset_sector & 0xff;
+    sptdwb.sptd.Cdb[6] = 0x00;
+    sptdwb.sptd.Cdb[7] = (read_size >> 8) & 0xff;
+    sptdwb.sptd.Cdb[8] = read_size & 0xff;
+    sptdwb.sptd.Cdb[9] = 0x00;
+    length = sizeof(SCSI_PASS_THROUGH_DIRECT_WITH_REQSENSE);
+    iRet = DeviceIoControl(Dev,
+        IOCTL_SCSI_PASS_THROUGH_DIRECT,
+        &sptdwb,
+        length,
+        &sptdwb,
+        length,
+        &bytesReturn,
+        NULL);
+    if (0 == iRet)
+    {
+        return 0;
+    }
+    return iRet;
+}
+bool write_value(HANDLE Dev, BYTE* write_data, int offset_sector, int write_size) {
+    int iRet;
+    ULONG length = 0;
+    DWORD bytesReturn;
+    SCSI_PASS_THROUGH_DIRECT_WITH_REQSENSE sptdwb;
+    sptdwb.sptd.Length = sizeof(SCSI_PASS_THROUGH_DIRECT);
+    sptdwb.sptd.PathId = 0;
+    sptdwb.sptd.TargetId = 1;
+    sptdwb.sptd.Lun = 0;
+    sptdwb.sptd.CdbLength = 10;
+    sptdwb.sptd.DataIn = SCSI_IOCTL_DATA_OUT;
+    sptdwb.sptd.SenseInfoLength = 24;
+    sptdwb.sptd.DataTransferLength = 512 * write_size;
+    sptdwb.sptd.TimeOutValue = 2;
+    sptdwb.sptd.DataBuffer = write_data;
+    sptdwb.sptd.SenseInfoOffset = offsetof(SCSI_PASS_THROUGH_DIRECT_WITH_REQSENSE, abRequestSense);
+    sptdwb.sptd.Cdb[0] = 0x2A;      //opcode: Host write data to storage device 
+    sptdwb.sptd.Cdb[1] = 0x00;
+    sptdwb.sptd.Cdb[2] = (offset_sector >> 24) & 0xff;           //Logical Block Address
+    sptdwb.sptd.Cdb[3] = (offset_sector >> 16) & 0xff;
+    sptdwb.sptd.Cdb[4] = (offset_sector >> 8) & 0xff;
+    sptdwb.sptd.Cdb[5] = offset_sector & 0xff;
+    sptdwb.sptd.Cdb[6] = 0x00;                                  //Reserved
+    sptdwb.sptd.Cdb[7] = (write_size >> 8) & 0xff;              //Transfer Length
+    sptdwb.sptd.Cdb[8] = write_size & 0xff;
+    sptdwb.sptd.Cdb[9] = 0x00;                                  //Control
+    length = sizeof(SCSI_PASS_THROUGH_DIRECT_WITH_REQSENSE);
+    iRet = DeviceIoControl(Dev,
+        IOCTL_SCSI_PASS_THROUGH_DIRECT, //애플리케이션에서 다음과 같은 제한 사항으로 거의 모든 SCSI 명령을 대상 디바이스에 보낼 수 있습니다.
+        &sptdwb,
+        length,
+        &sptdwb,
+        length,
+        &bytesReturn,
+        NULL);
+    //지정된 장치 드라이버에 제어코드를 직접 보내 해당 장치가 해당 작업을 수행
+    /*
+    * "Sends a control code directly to a specified device driver, causing the corresponding device to perform the corresponding operation."
+    * BOOL DeviceIoControl(
+       HANDLE       hDevice,                   // A handle to the device on which the operation is to be performed.
+       DWORD        dwIoControlCode,           // 작업에 대한 제어 코드입니다. 이 값은 수행할 특정 작업과 수행할 장치 유형을 식별합니다.
+       LPVOID       lpInBuffer,                //작업을 수행하는 데 필요한 데이터가 포함된 입력 버퍼에 대한 포인터입니다. 이 데이터의 형식은 dwIoControlCode 매개변수 의 값에 따라 다릅니다 .
+       DWORD        nInBufferSize,             // 입력 버퍼의 크기(바이트)입니다.
+       LPVOID       lpOutBuffer,               //작업에서 반환된 데이터를 수신할 출력 버퍼에 대한 포인터입니다. 이 데이터의 형식은 dwIoControlCode 매개변수 의 값에 따라 다릅니다 .
+       DWORD        nOutBufferSize,            // 출력 버퍼의 크기(바이트)입니다.
+       LPDWORD      lpBytesReturned,           // 출력 버퍼에 저장된 데이터의 크기를 바이트 단위로 수신하는 변수에 대한 포인터입니다.
+       LPOVERLAPPED lpOverlapped               // OVERLAPPED 구조 에 대한 포인터입니다 .FILE_FLAG_OVERLAPPED를 지정하지 않고 hDevice를 열면 lpOverlapped 가 무시됩니다 .
+       );
+    */
+    if (0 == iRet)
+    {
+        return 0;
+    }
+    return iRet;
+}
+std::string managedStrToNative(const std::string& sysstr) {
+    std::string outString;
+
+    // Marshal the managed string to unmanaged memory
+    char* nativeStr = new char[sysstr.length() + 1];
+    std::strcpy(nativeStr, sysstr.c_str());
+
+    // Get the string back from unmanaged memory
+    outString = nativeStr;
+
+    // Free the unmanaged string
+    delete[] nativeStr;
+
+    return outString;
+}
+LPCWSTR stringToLPCWSTR(std::string orig) {
+    size_t origsize = orig.length() + 1;
+    const size_t newsize = 100;
+    size_t convertedChars = 0;
+    wchar_t* wcstring = (wchar_t*)malloc(sizeof(wchar_t) * (orig.length() - 1));
+    mbstowcs_s(&convertedChars, wcstring, origsize, orig.c_str(), _TRUNCATE); // _TRUNCATE : functions will copy as much of the string as will
+    return wcstring;                                                          //             fit, leaving the dest buffer null-terminated, and
+}
+int read_disk_size(HANDLE dsk) {               //Reference: https://blog.csdn.net/u011164819/article/details/52045151
+    int iRet;
+    ULONG length = 0;
+    DWORD bytesReturn;
+    SCSI_PASS_THROUGH_DIRECT_WITH_REQSENSE sptdwb;
+    BYTE read_size_buf[64 * 1024 + 10];
+    sptdwb.sptd.Length = sizeof(SCSI_PASS_THROUGH_DIRECT);
+    sptdwb.sptd.PathId = 0;
+    sptdwb.sptd.TargetId = 1;
+    sptdwb.sptd.Lun = 0;
+    sptdwb.sptd.CdbLength = 10;
+    sptdwb.sptd.DataIn = SCSI_IOCTL_DATA_IN;
+    sptdwb.sptd.SenseInfoLength = 24;
+    sptdwb.sptd.DataTransferLength = 8;
+    sptdwb.sptd.TimeOutValue = 2;
+    sptdwb.sptd.DataBuffer = read_size_buf;
+    sptdwb.sptd.SenseInfoOffset = offsetof(SCSI_PASS_THROUGH_DIRECT_WITH_REQSENSE, abRequestSense);
+    sptdwb.sptd.Cdb[0] = 0x25;                //opcode: Read storage volume
+    length = sizeof(SCSI_PASS_THROUGH_DIRECT_WITH_REQSENSE);
+    iRet = DeviceIoControl(dsk,
+        IOCTL_SCSI_PASS_THROUGH_DIRECT,
+        &sptdwb,
+        length,
+        &sptdwb,
+        length,
+        &bytesReturn,
+        NULL);
+    if (0 == iRet)
+    {
+        return 0;
+    }
+    int sectors = read_size_buf[0] * (1 << 24) + read_size_buf[1] * (1 << 16) + read_size_buf[2] * (1 << 8) + read_size_buf[3] + 1;
+    return sectors;
+};
+int init_disk(HANDLE dsk) {
+    /*
+    *  Read the origin volume and check it's MBR and FAT type
+    *  Clear the system sector with 1000 sectors from 0, FAT, root
+    */
+    BYTE Readbuf[512] = { 0 };
+    BYTE ZeroSect[512] = { 0 };
+    BYTE gzero[51200] = { 0 };
+    BYTE* rdbuf;
+    rdbuf = Readbuf;
+    int rRET = 0;
+    rRET = read_value(dsk, rdbuf, 0, 1);
+    for (int i = 0; i < 512; i++)
+    {
+        Readbuf[i] = rdbuf[i];
+    }
+
+    //read info
+
+    int booter_start = 0;
+    int fat_start = 0;
+    int cluster_start = 0;
+    int fat_size = 0;
+    int clr_rsv = 100;
+
+    if (Readbuf[0] == 0xEB && Readbuf[13] != 0x00) {
+        fat_start = (Readbuf[15] << 8) + (Readbuf[14]);
+        fat_size = (Readbuf[39] << 24) + (Readbuf[38] << 16) + (Readbuf[37] << 8) + Readbuf[36];
+        cluster_start = fat_start + fat_size * 2;
+    }//FAT32 WITHOUT MBR
+
+
+    for (int i = 0; i < 20; i++)
+    {
+        rRET = write_value(dsk, gzero, i * 100, 100);
+    }
+    for (int i = 0; i < 20; i++)
+    {
+        rRET = write_value(dsk, gzero, 2048 + i * 100, 100);
+    }
+
+    int fat_clr_cnt = fat_size / 100 + 100;
+    for (int i = 0; i < fat_clr_cnt * 2; i++)
+    {
+        rRET = write_value(dsk, gzero, fat_start + i * 100 - clr_rsv, 100);
+    }
+    for (int i = 0; i < 10; i++)
+    {
+        rRET = write_value(dsk, gzero, cluster_start + i * 100 - clr_rsv, 100);
+    }
+    return 0;
+}
+DWORD get_volume_id() {
+    SYSTEMTIME s;
+    DWORD d;
+    WORD lo, hi, tmp;
+    GetLocalTime(&s);
+    lo = s.wDay + (s.wMonth << 8);
+    tmp = (s.wMilliseconds / 10) + (s.wSecond << 8);
+    lo += tmp;
+    hi = s.wMinute + (s.wHour << 8);
+    hi += s.wYear;
+    d = lo + (hi << 16);
+    return d;
+}
+DWORD GetFATSizeSectors(DWORD DskSize, DWORD ReservedSecCnt, DWORD SecPerClus, DWORD NumFATs, DWORD BytesPerSect) {
+    ULONGLONG Numerator, Denominator;
+    ULONGLONG FatElementSize = 4;
+    ULONGLONG ReservedClusCnt = 2;
+    ULONGLONG FatSz;
+
+    Numerator = DskSize - ReservedSecCnt + ReservedClusCnt * SecPerClus;
+    Denominator = SecPerClus * BytesPerSect / FatElementSize + NumFATs;
+    FatSz = Numerator / Denominator + 1;
+    return (DWORD)FatSz;
+}
+BYTE* FAT32_boot_sector_setting(HANDLE dsk, int cluster_size, int reserved_offset) {
+    BYTE b_sec[512] = { 0 };
+    FAT32_BOOTSECTOR* FAT32BootSec = (FAT32_BOOTSECTOR*)VirtualAlloc(NULL, 512, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+
+    /*
+    * VirtualAlloc(
+       LPVOID lpAddress,
+       SIZE_T dwSize,
+       DWORD  flAllocationType,
+       DWORD  flProtect
+    );
+    * "Memory allocated by this function is automatically initialized to zero."
+    * lpAddress: The starting address of the region to allocate. If this parameter is NULL, the system determines where to allocate the region.
+    * dwsize   : The size of the region, in bytes.
+    * flAllocationType: The type of memory allocation.
+    * flProtect: The memory protection for the region of pages to be allocated.
+    */
+
+    FAT32BootSec->sJmpBoot[0] = 0xEB;
+    FAT32BootSec->sJmpBoot[1] = 0x58;
+    FAT32BootSec->sJmpBoot[2] = 0x90;
+    memcpy(FAT32BootSec->sOEMName, "MSDOS5.0", sizeof(FAT32_BOOTSECTOR::sOEMName));
+    FAT32BootSec->wBytsPerSec[0] = 0x00;
+    FAT32BootSec->wBytsPerSec[1] = 0x02;
+    int clus_size = cluster_size * 2;             // cluster_size KB / 512 B = cluster_size * 2
+    FAT32BootSec->bSecPerClus = (BYTE)clus_size;
+    FAT32BootSec->wRsvdSecCnt = (WORD)(reserved_offset);     // Origin: (WORD)(reserved_offset + 1024) ;
+    fat32_fatoffset = reserved_offset + MBR_start_sector;    // Origin: reserved_offset + 1024 + MBR_start_sector;
+    FAT32BootSec->bNumFATs = 0x02;
+    FAT32BootSec->wRootEntCnt[0] = 0;
+    FAT32BootSec->wRootEntCnt[1] = 0;
+    FAT32BootSec->wTotSec16[0] = 0;
+    FAT32BootSec->wTotSec16[1] = 0;
+    FAT32BootSec->bMedia = 0xF8;
+    FAT32BootSec->wFATSz16 = 0;
+    FAT32BootSec->wSecPerTrk[0] = 0x3F;
+    FAT32BootSec->wSecPerTrk[1] = 0x00;
+    FAT32BootSec->wNumHeads[0] = 0xFF;
+    FAT32BootSec->wNumHeads[1] = 0x00;
+    FAT32BootSec->dHiddSec = (DWORD)MBR_start_sector;
+    int tol_sec = read_disk_size(dsk);
+    FAT32BootSec->dTotSec32 = (DWORD)(tol_sec - MBR_start_sector);
+    FatSize = GetFATSizeSectors((DWORD)(tol_sec - MBR_start_sector), (WORD)reserved_offset, (BYTE)clus_size, 2, 512);
+    FAT32BootSec->dFATSz32 = FatSize;
+    FAT32BootSec->wExtFlags = 0;
+    FAT32BootSec->wFSVer = 0;
+    FAT32BootSec->dRootClus = (DWORD)2;
+    FAT32BootSec->wFSInfo = (WORD)1;
+    FAT32BootSec->wBkBootSec = (WORD)6;
+    FAT32BootSec->bDrvNum = 0x80;
+    FAT32BootSec->Reserved1 = 0;
+    FAT32BootSec->bBootSig = 0x29;
+    DWORD vol_id = get_volume_id();
+    FAT32BootSec->dBS_VolID = vol_id;
+    memcpy(FAT32BootSec->sVolLab, "NO NAME    ", 11);
+    memcpy(FAT32BootSec->sBS_FilSysType, "FAT32   ", 8);
+    ((BYTE*)FAT32BootSec)[510] = 0x55;
+    ((BYTE*)FAT32BootSec)[511] = 0xaa;
+    for (int i = 0; i < 512; i++)
+    {
+        b_sec[i] = ((BYTE*)FAT32BootSec)[i];
+    }
+    return b_sec;
+}
+BYTE* FAT32_fsinfo_sector_setting(HANDLE dsk, int usable_size, int free_count)
+{
+    BYTE fs_sec[512] = { 0 };
+    FAT32_FSINFO* FAT32fsinfoSec = (FAT32_FSINFO*)VirtualAlloc(NULL, 512, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    FAT32fsinfoSec->dLeadSig = 0x41615252;    //RRaA 시그니처
+    FAT32fsinfoSec->dStrucSig = 0x61417272;   //rrAa 시그니처
+    FAT32fsinfoSec->dFree_Count = 10;
+    FAT32fsinfoSec->dNxt_Free = 3;
+    FAT32fsinfoSec->dTrailSig = 0xaa550000;  //마지막 시그니처로 마지막 4바이트에 위치하며 55AA의 값을 가진다.
+    for (int i = 0; i < 512; i++)
+    {
+        fs_sec[i] = ((BYTE*)FAT32fsinfoSec)[i];
+    }
+    return fs_sec;
+}
+BYTE* initFATfile(int bitallc_size, int upcase_size) {
+    BYTE initFAT[2048] = { 0 };
+    for (int i = 0; i < 8; i++)
+    {
+        initFAT[i] = 0xFF;
+    }
+    initFAT[0] = 0xF8;
+    for (int i = 0; i < bitallc_size; i++)
+    {
+        initFAT[8 + 4 * i] = (BYTE)(i + 3);
+    }
+    initFAT[8 + 4 * (bitallc_size - 1)] = 0xFF;
+    initFAT[8 + 4 * (bitallc_size - 1) + 1] = 0xFF;
+    initFAT[8 + 4 * (bitallc_size - 1) + 2] = 0xFF;
+    initFAT[8 + 4 * (bitallc_size - 1) + 3] = 0xFF;
+    if (upcase_size > 1)
+    {
+        initFAT[8 + 4 * bitallc_size] = bitallc_size + 3;
+        initFAT[8 + 4 * (bitallc_size + 1)] = 0xFF;
+        initFAT[8 + 4 * (bitallc_size + 1) + 1] = 0xFF;
+        initFAT[8 + 4 * (bitallc_size + 1) + 2] = 0xFF;
+        initFAT[8 + 4 * (bitallc_size + 1) + 3] = 0xFF;
+        initFAT[8 + 4 * (bitallc_size + 2)] = 0xFF;
+        initFAT[8 + 4 * (bitallc_size + 2) + 1] = 0xFF;
+        initFAT[8 + 4 * (bitallc_size + 2) + 2] = 0xFF;
+        initFAT[8 + 4 * (bitallc_size + 2) + 3] = 0xFF;
+    }
+    else
+    {
+        initFAT[8 + 4 * (bitallc_size)] = 0xFF;
+        initFAT[8 + 4 * (bitallc_size)+1] = 0xFF;
+        initFAT[8 + 4 * (bitallc_size)+2] = 0xFF;
+        initFAT[8 + 4 * (bitallc_size)+3] = 0xFF;
+        //initFAT[8 + 4 * (bitallc_size) + 4] = 0xFF;
+        initFAT[8 + 4 * (bitallc_size + 1)] = 0xFF;
+        initFAT[8 + 4 * (bitallc_size + 1) + 1] = 0xFF;
+        initFAT[8 + 4 * (bitallc_size + 1) + 2] = 0xFF;
+        initFAT[8 + 4 * (bitallc_size + 1) + 3] = 0xFF;
+    }
+    return initFAT;
+}
+BYTE* initBitfile(int bitallc_size, int upcase_size) {
+    BYTE initBit[512] = { 0 };
+    int allnum = bitallc_size + upcase_size + 1;
+    int quotient = allnum / 8;
+    int remainder = allnum % 8;
+    for (int i = 0; i < quotient; i++)
+        initBit[i] = 0xFF;
+
+    switch (remainder)
+    {
+    case 1:
+        initBit[quotient] = 0x01;   //0000 0001
+        break;
+    case 2:
+        initBit[quotient] = 0x03;   //0000 0011
+        break;
+    case 3:
+        initBit[quotient] = 0x07;   //0000 0111
+        break;
+    case 4:
+        initBit[quotient] = 0x0F;   //0000 1111
+        break;
+    case 5:
+        initBit[quotient] = 0x1F;   //0001 1111
+        break;
+    case 6:
+        initBit[quotient] = 0x3F;   //0011 1111
+        break;
+    case 7:
+        initBit[quotient] = 0x7F;   //0111 1111
+        break;
+    }
+    return initBit;
+}
+
+
+
+
+
+
+bool format_main(std::string disk, int FAT_type, int cluster_size, int reserved_offset)
+{
+    HANDLE hardDev;
+    MBR_start_sector = 0;
+    //dev name
+    std::string dev = "\\\\.\\";
+    dev = dev + managedStrToNative(disk);
+    dev.erase(6, 1);
+    LPCWSTR handle_dev = stringToLPCWSTR(dev);
+    DWORD cbRet;
+    int rRET = 0; // == 리턴값으로 0이되면 포멧 실패
+    hardDev = CreateFile(_T("\\\\.\\D:"),
+        (GENERIC_READ | GENERIC_WRITE),
+        (FILE_SHARE_READ | FILE_SHARE_WRITE),
+        NULL,
+        OPEN_EXISTING,
+        FILE_FLAG_OVERLAPPED,
+        NULL
+    );// 드라이브 들어가서 읽기
+    rRET = DeviceIoControl(hardDev, FSCTL_ALLOW_EXTENDED_DASD_IO, NULL, 0, NULL, 0, &cbRet, NULL);
+    // 지정된 장치 드라이버에 제어코드를 직접 보내 해당 장치가 해당 작업을 수행 하도록 한다.
+    //FSCTL_ALLOW_EXTENDED_DASD_IO 파일 시스템 드라이버가 파티션 읽기 또는 쓰기 호출에 대해 I/O 경계 검사를 수행하지 않도록 신호합니다. 대신 디바이스 드라이버에서 경계 검사를 수행합니다.
+    DeviceLock(hardDev);
+    //데이터 누수 방지
+    int write_start_sector = 0;
+    BYTE MBRbs[512] = { 0 };
+
+
+    init_disk(hardDev);
+
+    //읽은 ReservedArea 복사(원래 볼륨, 시작위치 등)
+
+    progress = 30;
+
+    //Formating FAT32 or EXFAT
+    if (FAT_type == 0)
+    {
+        BYTE b_sec[512] = { 0 };
+        ZERO_SECTOR* FirstSectOfFat = (ZERO_SECTOR*)VirtualAlloc(NULL, 512, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE); //호출 프로세스의 가상 주소 공간에서 페이지 영역의 상태를 예약, 커밋 또는 변경합니다.
+        BYTE BS[512] = { 0 };
+        BYTE FSINFOS[512] = { 0 };
+        BYTE Reserved[512] = { 0 };
+        BYTE Undefined[512] = { 0 };
+        BYTE ZEROSEC[512] = { 0 };
+        FirstSectOfFat->RES1 = 0x0FFFFFF8;  // Reserved cluster 1 media id in low byte
+        FirstSectOfFat->RES2 = 0xFFFFFFFF;  // Reserved cluster 2 EOC
+        FirstSectOfFat->RES3 = 0x0FFFFFFF;
+
+        //모든 값들 0으로 초기화
+
+        for (int i = 0; i < 512; i++)
+        {
+            ZEROSEC[i] = ((BYTE*)FirstSectOfFat)[i];
+        }
+        //zerosec의 크기를 byte단위로 맞춰줌.
+
+        BYTE* boot_sec = FAT32_boot_sector_setting(hardDev, cluster_size, reserved_offset);   //Return a pointer of a sector (512 Byte).
+        //ReservedArea 초기 세팅
+        //여기서 boot_sec에 셋팅 값이 들어감
+
+
+        for (int i = 0; i < 512; i++)
+        {
+            BS[i] = boot_sec[i];
+        }
+        //BS에다가 ReservedArea 초기새팅한 값 넣어주기
+
+        int Numsect = read_disk_size(hardDev);
+        int usable_size = Numsect - reserved_offset - FatSize * 2;          //"FatSize" in secter
+        int ClusterCount = usable_size / (cluster_size * 2);
+        int free_count = (usable_size / ClusterCount) - 1;
+
+        BYTE* fs_sec = FAT32_fsinfo_sector_setting(hardDev, usable_size, free_count);
+        //초기 FSINFOS값 넣어주기
+
+        for (int i = 0; i < 512; i++)
+        {
+            FSINFOS[i] = fs_sec[i];
+        }
+        //FSINFOS에 초기값 넣어주기
+
+
+        int fatstart = fat32_fatoffset;
+        int fattwice = fat32_fatoffset + FatSize;       //FAT AREA는 1,2로 나눠져 있기 때문에 두개를 만들어줌
+        int datastart = fat32_fatoffset + 2 * FatSize;
+        int fat_clr_time = (FatSize * 2 + 100) / 100 + 2;
+        //위치 계산
+
+        //FAT Area,data 빈값으로 밀고 넣기
+
+        rRET = write_value(hardDev, clearbuff, write_start_sector, 100);  //write 100 sectors
+        for (int i = 0; i < fat_clr_time; i++) {
+            rRET = write_value(hardDev, clearbuff, fatstart + 100 * i, 1);
+        }
+        for (int i = 0; i < fat_clr_time; i++) {
+            rRET = write_value(hardDev, clearbuff, datastart + 100 * i, 1);
+        }
+
+        rRET = write_value(hardDev, BS, write_start_sector, 1); // BOOT SECTOR초기값 넣어주기
+        write_start_sector++; //위치 이동
+        rRET = write_value(hardDev, FSINFOS, write_start_sector, 1); //FSINFO값 넣어주기
+        write_start_sector = MBR_start_sector + 6;   //위치 이동
+        rRET = write_value(hardDev, BS, write_start_sector, 1); //BOOT SECTOR초기값 넣어주기
+        write_start_sector++; // 위치 이동
+        rRET = write_value(hardDev, FSINFOS, write_start_sector, 1); //FSINFO값 넣어주기
+        write_start_sector++; //위치 이동
+
+        //두번  넣는 이유는 구조가 반복되기 때문
+        //0 : BOOT SECTOR
+        //1 : FSINFO
+        //2 : BootStrap
+        //3,4,5 = Reseved Area
+        //6 : BOOT SECTOR
+        //7 : FSINFO
+        //8 : BootStrap
+        //9~31 = Reseved Area
+
+        rRET = write_value(hardDev, ZEROSEC, fatstart, 1);
+        rRET = write_value(hardDev, ZEROSEC, fattwice, 1);
+        //write the first FAT reserved
+    }//FAT32
+
+
+    rRET = DeviceIoControl(hardDev, FSCTL_DISMOUNT_VOLUME, NULL, 0, NULL, 0, &cbRet, NULL); // 지정된 장치 드라이버에 제어코드를 직접 보내 해당 장치가 해당 작업을 수행하게함
+    DeviceUnLock(hardDev);                                                   // 볼륨이 사용 중인지 여부에 관계없이 볼륨을 분리하려고 시도합니다.
+    CloseHandle(hardDev);
+
+    return rRET;
+}
+
+
+
+int main() {
+    std::string disk = "D:";  // Replace with the appropriate disk name
+    int FAT_type = 0;  // Replace with the desired FAT type
+    int cluster_size = 8;  // Replace with the desired cluster size
+    int reserved_offset = 32;  // Replace with the desired reserved offset
+
+    bool formatSuccess = format_main(disk, FAT_type, cluster_size, reserved_offset);
+    if (formatSuccess) {
+        std::cout << "Disk formatting completed successfully." << std::endl;
+        return 0;
+    }
+    else {
+        std::cout << "Disk formatting failed." << std::endl;
+        return 0;
+    }
+}
