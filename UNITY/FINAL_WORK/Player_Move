@@ -13,15 +13,36 @@ public class playermove : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        if(Input.GetKeyDown(KeyCode.LeftArrow))
+        Vector3 pos;
+        pos = this.gameObject.transform.position;
+        if (Input.GetKeyDown(KeyCode.LeftArrow))
         {
-            transform.Translate(-3, 0,0);
+            if (pos.x > -7.0)
+            {
+                transform.Translate(-3, 0, 0);
+            }
         }
 
         if (Input.GetKeyDown(KeyCode.RightArrow))
         {
-            transform.Translate(3, 0, 0);
+            if (pos.x < 7.0)
+            {
+                transform.Translate(3, 0, 0);
+            }
+        }
+        if (Input.GetKeyDown(KeyCode.DownArrow))
+        {
+            if (pos.y > -3.0)
+            {
+                transform.Translate(0, -1, 0);
+            }
+        }
+        if (Input.GetKeyDown(KeyCode.UpArrow))
+        {
+            if (pos.y < 3.0)
+            {
+                transform.Translate(0, 1, 0);
+            }
         }
     }
 }
- 
