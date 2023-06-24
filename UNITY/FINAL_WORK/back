@@ -1,0 +1,63 @@
+using JetBrains.Annotations;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using static UnityEngine.GraphicsBuffer;
+
+public class back : MonoBehaviour
+{
+    public Transform Target;
+    public Transform[] nungcool;
+    public static int n = 0;
+    public static int[] nungcool_alive = new int[6] { 1, 1, 1, 1, 1, 1 };
+    public static double[] nungcool_where = new double[6] { -7.5f, -4.5f, -1.5f, 1.5f, 4.5f, 7.5f };
+    public float Speed = 1f;
+    public static bool nungcool_flag = false;
+    int cnt =0;
+    // Start is called before the first frame update
+
+
+    void Start()
+    {
+        for (int i = 0; i < nungcool.Length; i++)
+        {
+            nungcool[i].gameObject.SetActive(true);
+        }
+    }
+
+    int find()
+    {
+        if(cnt == 6)
+        {
+            return 10;
+        }
+        n = Random.Range(0, nungcool.Length);
+        if (nungcool_alive[n] == 0)
+        {
+            cnt++;
+            find();
+            return n;
+        }
+        else
+        {
+            return n;
+        }
+    }
+    // Update is called once per frame
+    void Update()
+    {
+        if(bomb.check)
+        {
+            cnt = 0;
+            find();
+            if (n != 10)
+            {
+                nungcool[n].gameObject.SetActive(false);
+                nungcool_alive[n] = 0;
+                nungcool_flag = true;
+            }
+
+            bomb.check = false;
+        }
+    }
+}
