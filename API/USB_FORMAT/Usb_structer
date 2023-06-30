@@ -1,0 +1,45 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <io.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <Windows.h>
+
+int main() {
+    const char* driveLetter = "\\\\.\\F:";  // USB 드라이브의 드라이브 문자
+
+    // 드라이브를 열기 위해 CreateFile 함수를 호출합니다.
+    HANDLE hDrive = CreateFile(L"\\\\.\\F:", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
+    if (hDrive == INVALID_HANDLE_VALUE) {
+        printf("드라이브를 열 수 없습니다.\n");
+        return 1;
+    }
+
+    // 드라이브를 FAT32 파일 시스템으로 포맷하기 위해 포맷 헤더를 설정합니다.
+    unsigned char formatHeader[512] = {
+        0xEB, 0x58, 0x90, 
+        0x4D, 0x53, 0x44, 0x4F, 0x53, 0x35, 0x2E, 0x30, 0x00, 0x02, 0x08, 0x6E, 0x10,0x02,0x00,0x00,0x00,0x00,0xF
+        //0xEB, 0x58, 0x90, 는 Boot Code로 점프하기위한 Jump command가 위치한다. 이때 BPB를 참조하여 File System이 부팅된다. FAT32 인 경우 0x9058EB
+        // 
+        // ...
+        // 포맷 헤더 내용 (생략)
+        // ...
+    };
+
+    // 드라이브의 첫 번째 섹터에 포맷 헤더를 기록합니다.
+    DWORD bytesWritten = 0;
+    BOOL result = WriteFile(hDrive, formatHeader, sizeof(formatHeader), &bytesWritten, NULL);
+    if (!result || bytesWritten != sizeof(formatHeader)) {
+        printf("포맷 헤더를 기록하는 데 실패했습니다.\n");
+        CloseHandle(hDrive);
+        return 1;
+    }
+
+    // 드라이브를 닫습니다.
+    CloseHandle(hDrive);
+
+    printf("USB 드라이브를 성공적으로 포맷했습니다.\n");
+
+    return 0;
+}
