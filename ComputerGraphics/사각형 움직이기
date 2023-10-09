@@ -1,0 +1,120 @@
+#include <gl/glut.h>                  
+#include <gl/gl.h>                     
+#include <gl/glu.h>   
+
+#include <stdio.h>
+//#include <stdlib.h>
+
+
+int color = 0;
+float x, y = 0;
+
+void MyDisplay() {
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    if (color == 1)
+        glColor3f(1.0, 0, 0);
+    else if (color == 2)
+        glColor3f(0, 1.0, 0);
+    else if (color == 3)
+        glColor3f(0, 0, 1.0);
+    else
+        glColor3f(0.5, 0.5, 0.5);
+
+    glBegin(GL_POLYGON);              // POLYGON :여러개라는 뜻      
+
+    glVertex3f(-0.5 + x, -0.5 + y, 0.0);
+    glVertex3f(0.5 + x, -0.5 + y, 0.0);
+    glVertex3f(0.5 + x, 0.5 + y, 0.0);
+    glVertex3f(-0.5 + x, 0.5 + y, 0.0);
+    glEnd();
+
+    glFlush();
+}
+
+void MyKeyboard(unsigned char KeyPressed, int X, int Y) {
+    switch (KeyPressed) {
+    case 'Q':
+        exit(0); break;
+    case 'q':
+        exit(0); break;
+    case 27:                //'esc' 키의 아스키 코드 값
+        exit(0); break;
+    case 'r':
+        color = 1; break;
+    case 'g':
+        color = 2; break;
+    case 'b':
+        color = 3; break;
+    case 'z':
+        color = 0; break;
+    case 'j':
+        x -= 0.1;
+        break;
+    case 'k':
+        x += 0.1;
+        break;
+    case 'i':
+        y += 0.1;
+        break;
+    case 'm':
+        y -= 0.1;
+        break;
+    }
+    glutPostRedisplay();
+}
+
+int main(int argc, char** argv) {
+    glutInit(&argc, argv); //윈도우 시스템과 연결할 수 없다거나 해당 운영체제가 그래픽 인터페이스를 제공하지 않는다면, 에러 메시지를 출력하구 강제종료하는 극단적인 방어가 주된 임무입니다. 
+    glutInitDisplayMode(GLUT_RGB);
+  /*GLUT_RGBA, GLUT_RGB                 트루컬러 모드, 기본값
+    GLUT_INDEX                                  팔레트를 사용하는 인덱스 모드, 거의 사용안함
+    GLUT_SINGLE                                싱글버퍼 사용, 기본값
+    GLUT_DOUBLE                               더블버퍼 사용
+    GLUT_DEPTH                                 깊이버퍼를 사용한다
+    GLUT_ACCUM                                누적버퍼를 사용한다
+    GLUT_ALPHA                                 색상에 알파값을 사용한다
+    GLUT_STENCIL                               스텐실 버퍼를 사용한다
+    GLUT_MULTISAMPLE                      멀티샘플링을 지원한다. 
+                                                         클라이언트와 서버가 동시지원해야한다.
+    GLUT_STEREO                               스테레오 윈도우를 사용한다.
+    GLUT_LUMINANCE                          루미넌스 색상모델을 사용한다.*/
+    glutInitWindowSize(300, 300);
+    glutInitWindowPosition(0, 0);
+  /*인수로 폭과 높이, 그리고 (x, y)좌표를 전달합니다.
+    윈도우 폭과 높이는 창의 크기가 아니라 작업공간의 크기입니다.
+    창의 크기는 작업영역크기에 타이틀 바와 경계선이 더해지므로 지정한 크기보다 좀 더 크게 생성됩니다. 100 * 100이면, 작업영역의 크기가 100 * 100이구 윈도우는 좀 더 클것입니다.
+
+    크기와 위치를 생략하면 300 * 300의 윈도우를 생성합니다.*/
+    glutCreateWindow("OpenGL Drawing Example");
+    //윈도우는 상단에 제목을 가지는데 제목을 문자열 인수로 지정합니다.
+    //윈도우를 지칭하는 유일한 ID가 리턴됩니다.
+    glClearColor(1.0, 1.0, 1.0, 1.0);
+
+    glMatrixMode(GL_PROJECTION);
+    //https://m.blog.naver.com/PostView.naver?isHttpsRedirect=true&blogId=thooy&logNo=10096108370
+    glLoadIdentity();
+    //이 함수는 현재 행렬을 단위 행렬로 만든다. 단위 행렬은 우하향 대각선 방향만 1이고 나머지 요소는 모두 0인 행렬로서 임의의 행렬을 곱해도 원래 행렬이 계산되는 특수한 행렬이다. 곰셉의 1, 덧셈의 0과 같은 항등원으로서 연산을 해도 처음값이 유지된다. 현재 행렬을 단위 행렬로 만든다는 것은 행렬을 리셋한다는 뜻이며 이는 곧 어떠한 변환도 하지 않는다는 뜻이다.
+    glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0);  // 2차원만 생각하면 맨 앞의 두 개만 신경쓰면 됨
+    /*glOrtho() 함수는
+    viewport를 변경하게 되었을 때 일어날 수 있는 왜곡현상을 막는데 사용할 수 있습니다.
+    가로 300 세로 300의 viewport를 가로 600 세로 300으로 변경하게 되면
+    그려진 물체가 정사각형이라면 가로길이가 2배로 커져서 가로가 긴 사각형이 됩니다.
+    ( 이유 -> vertex는 -1.0~1.0사이의 정규좌표를 사용합니다. 가로 300일때 가로 vertex 0.1이 15만큼의 가로 길이를 의미했다면
+     가로 600일때는 가로 vertex 0.1이 30만큼의 가로 길이를 의미하게 되므로 물체가 늘어납니다.)
+    이런 왜곡현상을 막고 종횡비를 유지하기 위해서 glOrtho()를 이용할수있습니다.
+    방법은 늘어난 viewport비율만큼 가로세로, 또는 상하를 늘려주면됩니다. glOrtho(-1,1,-1,1,1,10) 이었고 가로가 2배로 늘어났다면 glOrtho(-2,2,-1,1,1,10)로 해주면 됩니다.*/
+    glutDisplayFunc(MyDisplay);
+    glutKeyboardFunc(MyKeyboard);
+
+    glutMainLoop();
+  /*모든 윈도우 시스템은 이벤트 드리븐 방식으로 동작합니다.
+    이 함수는 계속 실행되면서 사용자나 시스템에 의해 발생한 메시지를 받아 메시지 처리함수를 호출하는 중요한 역할을 합니다.
+    콜백함수는 루프로 들어가기전에 미리 선언해야합니다.
+    아래는 콜백함수입니다.
+    void glutDisplayFunc(void (*func)(void));
+    void glutKeyboardFunc(void (*func)(unsigned char key, int x, int y);
+    void glutMouseFunc(void (*func)(int button, int state, int x, int y);
+    void glutReshapeFunc(void (*func)(int width, int height);*/
+    return 0;
+}
