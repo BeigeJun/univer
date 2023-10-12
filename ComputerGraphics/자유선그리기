@@ -1,0 +1,97 @@
+#include<GL/glut.h>
+#include<GL/gl.h>
+#include<GL/glu.h>
+#define TRUE 1
+#define FALSE 0
+
+GLint Old_x, Old_y, New_x, New_y; //마우스의 좌표값을 저장하는 변수
+GLfloat R = 0.0, G = 0.0, B = 0.0;  //선의 색상 정할 때 이용되는 변수
+bool identify = TRUE; //마우스를 누르고있으면 false, 안누르면 true.  false일 때 자유곡선을 그린다.
+bool click = TRUE; // 화면 초기화 안되게 막아주는 변수
+
+void MyDisplay()
+{
+    if (click == TRUE)  // click이 True 일 때에 화면을 초기화해준다.
+        //그러나 Mousemove에서 click = false로 하고 true로 바꿔주는게 없으므로 초기화 될 일이 없다. //직선으로 바꾸면 click = TRUE가 됨
+        glClear(GL_COLOR_BUFFER_BIT); // if문을 안넣어주면 계속 반복하면서 선을 두개만 그려주므로 이건 반드시 필요하다.
+    glViewport(0, 0, 300, 300);
+    glColor3f(R, G, B); //선의 색상.
+    glFlush();
+}
+
+void MyMouseClick(GLint Button, GLint State, GLint X, GLint Y)
+{
+    GLfloat SelectX = X / 300.0;
+    GLfloat SelectY = (300 - Y) / 300.0;
+    if (SelectX >= 0.9 && SelectX <= 1.0 && SelectY >= 0.8 && SelectY <= 1.0)
+    {
+        if (Button == GLUT_LEFT_BUTTON && State == GLUT_DOWN)     //마우스를 떼고 다시 다른곳에 누를때
+        {                //선을 연결 안시키려고 identify = TRUE로 바꿔준다.
+            identify = TRUE;
+        }
+        else
+        {
+            identify = FALSE;
+        }
+    }
+}
+void MyKeyboard(unsigned char KeyPressed, int X, int Y) {
+    switch (KeyPressed) {
+    case 'r':
+        R = 1.0;
+        G = 0.0;
+        B = 0.0; break;
+    case 'g':
+        R = 0.0;
+        G = 1.0;
+        B = 0.0; break;
+    case 'b':
+        R = 0.0;
+        G = 0.0;
+        B = 1.0; break;
+    }
+    glutPostRedisplay();
+}
+void MyMouseMove(GLint X, GLint Y)
+{
+        New_x = X;
+        New_y = Y;      //마우스의 현 좌표를 bottom x, y에 저장
+        if (identify == TRUE)
+        {
+            Old_x = New_x;  //처음 마우스를 눌렀을 때 top x, y에 현 좌표를 저장.
+            Old_y = New_y;
+
+            glutPostRedisplay(); // 여기 첫선
+        }
+        identify = FALSE; //마우스를 누르고 있는 시점
+        click = FALSE;//click이 false로 변한 시점부터 화면이 초기화되지 않는다.
+        //즉, 선을 그릴때 좌표 두개만 쓸 수 있었는데 이제 무한으로 쓸 수 있는것.
+        /*마우스클릭하여 점을 찍고 이동하는 순간부터 top과 bottom을 계속 연결하여 자유곡선을 그린다*/
+        glBegin(GL_LINES);
+        glVertex3f(Old_x / 300.0, (300 - Old_y) / 300.0, 0.0);
+        glVertex3f(New_x / 300.0, (300 - New_y) / 300.0, 0.0);
+        glEnd();
+        glFlush();
+
+        Old_x = New_x; //마지막으로 마우스를 뗐던 부분을 선의 시작좌표로 바꾼다.
+        Old_y = New_y; //시작좌표로 바꾸고 선을 그리고. 또 시작좌표로 바꿔서 선을 그리고. 이렇게 반복하면서 선을 그림.
+}
+
+int main(int argc, char** argv)
+{
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_RGB);
+    glutInitWindowSize(300, 300);
+    glutInitWindowPosition(0, 0);
+    glutCreateWindow("과제.");
+    glClearColor(1.0, 1.0, 1.0, 1.0);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0.0, 1.0, 0.0, 1.0, -1.0, 1.0);
+    glutDisplayFunc(MyDisplay);
+    glutKeyboardFunc(MyKeyboard);
+    glutMouseFunc(MyMouseClick);
+    glutMotionFunc(MyMouseMove);
+    glutMainLoop();
+    return 0;
+}
