@@ -18,22 +18,16 @@ void MyDisplay()
     glColor3f(R, G, B); //선의 색상.
     glFlush();
 }
-
 void MyMouseClick(GLint Button, GLint State, GLint X, GLint Y)
 {
-    GLfloat SelectX = X / 300.0;
-    GLfloat SelectY = (300 - Y) / 300.0;
-    if (SelectX >= 0.9 && SelectX <= 1.0 && SelectY >= 0.8 && SelectY <= 1.0)
-    {
         if (Button == GLUT_LEFT_BUTTON && State == GLUT_DOWN)     //마우스를 떼고 다시 다른곳에 누를때
         {                //선을 연결 안시키려고 identify = TRUE로 바꿔준다.
             identify = TRUE;
         }
-        else
+        else if (Button == GLUT_LEFT_BUTTON && State == GLUT_UP)
         {
             identify = FALSE;
         }
-    }
 }
 void MyKeyboard(unsigned char KeyPressed, int X, int Y) {
     switch (KeyPressed) {
@@ -66,7 +60,6 @@ void MyMouseMove(GLint X, GLint Y)
         identify = FALSE; //마우스를 누르고 있는 시점
         click = FALSE;//click이 false로 변한 시점부터 화면이 초기화되지 않는다.
         //즉, 선을 그릴때 좌표 두개만 쓸 수 있었는데 이제 무한으로 쓸 수 있는것.
-        /*마우스클릭하여 점을 찍고 이동하는 순간부터 top과 bottom을 계속 연결하여 자유곡선을 그린다*/
         glBegin(GL_LINES);
         glVertex3f(Old_x / 300.0, (300 - Old_y) / 300.0, 0.0);
         glVertex3f(New_x / 300.0, (300 - New_y) / 300.0, 0.0);
