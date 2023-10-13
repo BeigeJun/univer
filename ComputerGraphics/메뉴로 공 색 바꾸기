@@ -1,67 +1,68 @@
 #include <gl/glut.h>					
 #include <gl/gl.h>						
 #include <gl/glu.h>
-
-GLboolean IsSphere = true;				
-GLboolean IsSmall = true;				
-void MyDisplay( ){			
+float R = 0.0, G = 0.0, B = 0.0;
+GLboolean IsSphere = true;
+void MyDisplay() {
     glClear(GL_COLOR_BUFFER_BIT);
-	glColor3f(0.5, 0.0, 0.5);
+    glColor3f(R, G, B);
+    if (IsSphere)
+        glutWireSphere(0.2, 15, 15);//완벽구    크기, 위도, 경도
+    else
+        glutWireTorus(0.1, 0.3, 40, 20);//요건 도넛모양
+    glFlush();
+}
 
-    if ((IsSphere) && (IsSmall))			
-        glutWireSphere(0.2, 15, 15);	//작은 원구
-    else if ((IsSphere) && (!IsSmall))		
-		glutWireSphere(0.4, 15, 15);		//큰 원구
-    else if ((!IsSphere) && (IsSmall))	
-		glutWireTorus(0.1, 0.3, 40, 20);	//작은 원환체
-    else 
-		glutWireTorus(0.2, 0.5, 40, 20);//큰 원환체
-    glFlush( ); 				
-}	
-
-void MyMainMenu(int entryID){				
-    if(entryID == 1) 
-        IsSphere = true;				//원구 그리기
+void MyMainMenu(int entryID) {
+    if (entryID == 1)
+        IsSphere = true;
     else if (entryID == 2)
-        IsSphere = false;				//원환체 그리기
-    else if(entryID == 3) 
-		exit(0);							//프로그램 종료
-    glutPostRedisplay(); 
-}			
-
-void MySubMenu(int entryID){				
-    if(entryID == 1)
-        IsSmall = true;					//작은 크기로 그리기
-    else if (entryID == 2)
-		IsSmall = false;					//큰 크기로 그리기
-    glutPostRedisplay(); 
-}			
+        IsSphere = false;
+    else if (entryID == 3)
+    {   R = 1.0;
+        B = 0.0;
+        G = 0.0;
+    }
+    else if (entryID == 4)
+    {
+        R = 0.0;
+        B = 0.0;
+        G = 1.0;
+    }
+    else if (entryID == 5)
+    {
+        R = 0.0;
+        B = 1.0;
+        G = 0.0;
+    }
+    else if (entryID == 6)
+        exit(0);
+    glutPostRedisplay(); //인바이어렉 같은느낌
+}
 
 int main(int argc, char** argv) {
-    glutInit(&argc,argv); 		
-    glutInitDisplayMode(GLUT_RGB); 
-    glutInitWindowSize(300, 300);    	
-    glutInitWindowPosition(0, 0); 
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_RGB);
+    glutInitWindowSize(300, 300);
+    glutInitWindowPosition(0, 0);
     glutCreateWindow("OpenGL Example Drawing");
 
-    glClearColor (1.0, 1.0, 1.0, 1.0);		
-    glMatrixMode(GL_PROJECTION);    
-    glLoadIdentity( );    
-    glOrtho(-1.0, 1.0,   -1.0, 1.0,   -1.0, 1.0); 
+    glClearColor(1.0, 1.0, 1.0, 1.0);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(-1.0, 1.0, -1.0, 1.0, -1.0, 1.0);
 
-    GLint MySubMenuID = glutCreateMenu(MySubMenu);	
-		glutAddMenuEntry("Small One", 1);
-		glutAddMenuEntry("Big One", 2);
-    GLint MyMainMenuID = glutCreateMenu(MyMainMenu);	
-		glutAddMenuEntry("Draw Sphere", 1);
-		glutAddMenuEntry("Draw Torus", 2);
-		glutAddSubMenu("Change Size", MySubMenuID);		
-		glutAddMenuEntry("Exit", 3);
+    GLint MyMainMenuID = glutCreateMenu(MyMainMenu);
+    glutAddMenuEntry("Draw Sphere", 1); //메뉴추가
+    glutAddMenuEntry("Draw Torus", 2);
+    glutAddMenuEntry("RED", 3);
+    glutAddMenuEntry("GREEN", 4);
+    glutAddMenuEntry("BLUE", 5);
+    glutAddMenuEntry("Exit", 6);
     glutAttachMenu(GLUT_RIGHT_BUTTON);
 
-    glutDisplayFunc(MyDisplay);  		
+    glutDisplayFunc(MyDisplay); // 요걸 호출해서 동기화
 
-    glutMainLoop( );			
-
-    return 0;		
+    glutMainLoop();
+    return 0;
 }
