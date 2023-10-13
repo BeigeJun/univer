@@ -7,7 +7,7 @@ GLboolean IsSmall = true;
 float R = 0.0, G = 0.0, B = 0.0;
 void MyDisplay() {
     glClear(GL_COLOR_BUFFER_BIT);
-    glColor3f(0.5, 0.0, 0.5);
+    glColor3f(R, G, B);
 
     if ((IsSphere) && (IsSmall))
         glutWireSphere(0.2, 15, 15);	//작은 원구
