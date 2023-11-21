@@ -1,0 +1,17 @@
+CC = gcc
+CFLAGS = -Wall -Wextra
+
+all : goodluck life
+	
+goodluck : good.o luck.o
+	$(CC) -o $@ $^
+life : life.o
+	$(CC) -o $@ $^
+good.o : good.c
+	$(CC) $(CFLAGS) -c -o $@ $^
+luck.o : luck.c
+	$(CC) $(CFLAGS) -c -o $@ $^
+life.o : life.c
+	$(CC) $(CFLAGS) -c -o $@ $^
+clean : 
+	rm -rf *.o goodluck life
