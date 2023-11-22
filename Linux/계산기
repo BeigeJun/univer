@@ -1,0 +1,29 @@
+#!/bin/bash
+
+num1=0
+num2=0
+result=0
+
+if [ $# -ne 3 ]; then
+    echo "Usage: $(basename $0) sign num1 num2" >&2
+    exit 1
+fi
+
+num1=$2
+num2=$3
+
+case $1 in
+    +) result=$((num1 + num2))
+    ;;
+    -) result=$((num1 - num2))
+    ;;
+    \*) result=$((num1 * num2))
+    ;;
+    /) result=$((num1 / num2))
+    ;;
+    *) echo "Invalid sign: $1" >&2
+       exit 1
+    ;;
+esac
+
+echo "$num1 $1 $num2 = $result"
