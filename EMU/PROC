@@ -1,0 +1,41 @@
+MAIN   SEGMENT
+   ASSUME   CS:MAIN,DS:MAIN
+   MOV   AX,CS
+   MOV   DS,AX
+
+LOOP1:   CMP   SI,10
+   JE   LOOP2
+   MOV   AX,DATA1[SI]
+   MOV   DSORT,AX
+   ADD   SI,2
+   JMP   LOOP1
+
+LOOP2:   CMP   DI,10
+   JE   FIN
+   CALL    BIGGER
+   JMP   LOOP2
+
+
+ 
+FIN:   MOV   AH,4CH
+   INT   21H
+
+BIGGER   PROC
+   MOV   AX,DSORT[DI]
+   MOV   BX,DSORT[DI+2]
+   CMP   AX,BX
+   JA   L3
+   ADD   DI,2
+   RET
+L3:   MOV   DSORT[DI],BX
+   MOV   DSORT[DI+2],AX
+   ADD   DI,2
+   RET
+BIGGER   ENDP   
+
+DATA1   DW   35,26,20,3,100
+DATA2   DW   15,36,1,22,10
+DMAX   DW   5 DUP(0)
+DSORT   DW   5 DUP(0)
+MAIN   ENDS
+       END
