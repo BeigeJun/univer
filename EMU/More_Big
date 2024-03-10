@@ -1,0 +1,36 @@
+MAIN   SEGMENT
+   ASSUME   CS:MAIN,DS:MAIN
+   MOV   AX,CS
+   MOV   DS,AX
+
+LOOP:   CMP   SI,20
+   JE   FIN
+
+   MOV   AX,DATA1[SI]
+   MOV   BX,DATA2[SI]
+   CMP   AX,BX
+   JE   L1
+   JA   L1
+   JB   L2
+
+
+   MOV   AH,4CH
+   INT   21H
+
+L1:   MOV   DMAX[SI],AX
+   ADD   SI,2
+   JMP   LOOP
+
+L2:   MOV   DMAX[SI],BX
+   ADD   SI,2
+   JMP   LOOP
+
+FIN:   MOV   AH,4CH
+   INT   21H
+
+DATA1   DW   35,26,20,3,100
+DATA2   DW   15,36,1,22,10
+DMAX   DW   5 DUP(0)
+DSORT   DW   5 DUP(0)
+MAIN   ENDS
+       END 
