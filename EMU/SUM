@@ -1,0 +1,28 @@
+MAIN   SEGMENT
+   ASSUME   CS:MAIN,DS:MAIN
+   MOV   AX,CS
+   MOV   DS,AX
+
+   ADD   SI,3
+   MOV   AX,DATA1[SI]
+   ADD   SUM,AX
+   MOV   AX,DATA2[SI]
+   ADD   SUM,AX   
+   MOV   BX,SUM
+   MOV   AH,2
+   INT   21H
+
+   MOV   AH,4CH
+   INT   21H
+
+
+
+
+
+DATA1   DW   35,26,20,3,100
+DATA2   DW   15,36,1,22,10
+DMAX   DW   5 DUP(0)
+DSORT   DW   5 DUP(0)
+SUM   DW   0
+MAIN   ENDS
+       END
