@@ -1,264 +1,111 @@
 import numpy as np
 import pandas as pd
+from sklearn.datasets import load_iris
+from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
-from sklearn.decomposition import PCA
-from mpl_toolkits.mplot3d import Axes3D
-from copy import deepcopy
 
-Iris_csv = pd.read_csv('C:/Users/wns20/PycharmProjects/pythonProject10/DataSet.csv')
-SepalLength = Iris_csv.SepalLength.tolist()
-SepalWidth = Iris_csv.SepalWidth.tolist()
-PetalLength = Iris_csv.PetalLength.tolist()
-PetalWidth = Iris_csv.PetalWidth.tolist()
-#아이리스 데이터 가져오기
-Iris = []
-Iris.append(SepalLength)
-Iris.append(SepalWidth)
-Iris.append(PetalLength)
-Iris.append(PetalWidth)
-#Iris라는 리스트로 묶어주기
-k_clusters = 3
-#군집의 개수는 3개
+def avr(A,B):
+    sum = 0
+    for i in range(len(A)):
+        sum += A[i][B]
+    output = sum / len(A)
+    return output
 
-def Euclidean_distance(a,b):
-    return sum([(Point_1 - Point_2) ** 2 for Point_1, Point_2 in zip(a, b)]) ** 0.5
-#유클리드 거리 구하는 함수
+def variance(A, B):
+    avg = avr(A, B)
+    diff = 0
+    for i in range(len(A)):
+        diff += (A[i][B] - avg) ** 2
+    variance_output = diff / len(A)
+    return variance_output
 
-def normalization(Test):
-    Max = 0.0
-    Min = 10.0
-    for i in range(4):
-        for j in range(150):
-            compare_Max = max(Test[i])
-            compare_Min = min(Test[i])
-            if compare_Max > Max:
-                Max = compare_Max
-            if compare_Min < Min:
-                Min = compare_Min
-        for j in range(150):
-            Test[i][j] = (Test[i][j] - Min) / (Max - Min)
-    return Test
-#정규화
-Iris = normalization(Iris)
+Iris = load_iris()
+Iris_Data = pd.DataFrame(data=Iris['data'], columns=Iris['feature_names'])
+iris_data = np.array([])
+iris_data_ALL = np.array(Iris_Data.iloc[:])
+iris_data_A = np.array(Iris_Data.iloc[:49])
+iris_data_B = np.array(Iris_Data.iloc[50:99])
+iris_data_C = np.array(Iris_Data.iloc[100:149])
 
-while True:
-    print("1. 2개 속성")
-    print("2. 3개 속성")
-    print("3. 4개 속성")
-    print("4. PCA")
-    print("5. 종료")
-    Choose_num = input("옵션 선택 : ")
-    print("1.SepalLength")
-    print("2.SepalWidth")
-    print("3.PetalLength")
-    print("4.PetalWidth")
-    if(Choose_num == '1'):
-        property_1 = input("첫번째 속성 선택 : ")
-        property_2 = input("두번째 속성 선택 : ")
-    elif(Choose_num == '2'):
-        property_1 = input("첫번째 속성 선택 : ")
-        property_2 = input("두번째 속성 선택 : ")
-        property_3 = input("세번째 속성 선택 : ")
-    elif(Choose_num == '3'):
-        property_1 = input("첫번째 속성 선택 : ")
-        property_2 = input("두번째 속성 선택 : ")
-        property_3 = input("세번째 속성 선택 : ")
-        property_4 = input("네번째 속성 선택 : ")
-    elif(Choose_num == '4'):
-        print("PCA")
-    elif (Choose_num == '5'):
-        exit()
-    else:
-        print("잘못된 입력 재입력 하시오")
-        continue
-    if(Choose_num == '1' or Choose_num == '2' or Choose_num == '3'):
-        x = Iris[int(property_1) - 1]
-        y = Iris[int(property_2) - 1]
-        #선택한 속성 복사
-        Centroids_x = np.random.uniform(min(x), max(x), k_clusters)
-        Centroids_y = np.random.uniform(min(y), max(y), k_clusters)
-        #속성에서 제일 큰 값과 작은 값을 뽑아서 그 사이 값으로 3개의 랜덤좌표 생성(중심점)
-    if(Choose_num == '1'):
-        #속성 2개 선택
-        Centroids = list(zip(Centroids_x, Centroids_y))
-        #x,y 값을 묶어서 리스트로 변환
-        Centroids = np.array(Centroids)
-        Centroids_Old = np.zeros(Centroids.shape)
-        #변하는 위치를 저장할 변수 생성
-        Error = np.ones(k_clusters)
-        #데이터와 중심점의 거리 저장(Error가 전부 0 일 때 까지 반복하기 위해 1로 생성)
-        Lables = np.zeros(150)
-        Input_data_xy = np.array(list(zip(x,y)))
-        #좌표에 찍기위해 선택한 속성 리스트로 변환
-        plt.scatter(x, y, alpha=0.5)
-        plt.scatter(Centroids_x, Centroids_y,alpha=0.5, c='red')
-        plt.show()
-        #좌표에 점찍기
+def make_chart(data):
+  a1=avr(data,0)
+  a2=avr(data,1)
+  a3=avr(data,2)
+  a4=avr(data,3)
+  a5=variance(data,0)
+  a6=variance(data,1)
+  a7=variance(data,2)
+  a8=variance(data,3)
+  chart = pd.DataFrame({'ID':['Average Sepal', 'Variance'],
+                             'Sepal Length':[a1, a5],
+                             'Sepal Width':[a2, a6],
+                             'Petal Length':[a3,a7],
+                             'Petal Width':[a4,a8]})
+  print(chart)
 
-        while(Error.all() != 0):
-            for i in range(150):
-                Distance = np.zeros(k_clusters)
-                #Distance는 데이터 한 점과 중심점 3개의 거리를 저장해 둘 리스트
-                for j in range(k_clusters):
-                    Distance[j] = Euclidean_distance(Input_data_xy[i], Centroids[j])
-                    #거리 구해서 저장하기
-                Lables[i] = Distance.argmin()
-                #거리가 제일 짧은 중심점으로 지정하기
-            Centroids_Old = deepcopy(Centroids)
-            #중심점을 옮기기 전 복사해 두기
-            for i in range(k_clusters):
-                Points = [Input_data_xy[j] for j in range(len(Input_data_xy)) if Lables[j] == i]
-                #리스트 컴프리헨션
-                # Points = []
-                # for j in range(len(Input_data_xy)):
-                #     if Lables[j] == i:
-                #         Points.append(Input_data_xy[j])
-                Centroids[i] = np.mean(Points, axis=0)
-                #배정받은 데이터들의 중심점 계산
+# Iris 데이터셋 로드
+iris = load_iris()
+X = iris.data
+y = iris.target
+data_0 = iris.data[0]
+data_51 = iris.data[51]
+data_101 = iris.data[101]
 
-            plt.scatter(x, y, c=Lables, alpha=0.5)
-            plt.scatter(Centroids_Old[:, 0], Centroids_Old[:, 1], c='blue')
-            plt.scatter(Centroids[:, 0], Centroids[:, 1], c='red')
-            plt.show()
-            #중심점이 움직이기 전 후를 보여주고 3개로 나뉜 데이터를 찍어줌
-            for i in range(k_clusters):
-                Error[i] = Euclidean_distance(Centroids_Old[i], Centroids[i])
-            #Error를 계산함으로써 중심점이 바뀌었는지 확인함 이는 While문의 종료에 간여함
-        colors = ['r', 'g', 'b']
+# 3-means
+initial_centroids = np.array([
+     ],
+    [6.0, 2.5, 5.0, 1.8],
+    [7.0, 3.5, 6.0, 2.2]
+])
 
-        for i in range(k_clusters):
-            Points = np.array([Input_data_xy[j] for j in range(len(Input_data_xy)) if Lables[j] == i])
-            plt.scatter(Points[:, 0], Points[:, 1], c=colors[i], alpha=0.5)
-            print(colors[i], "의 개수는", len(Points[:, 1]))
-        #끝이나면 r,g,b의 개수를 출력
-        plt.scatter(Centroids[:, 0], Centroids[:, 1], marker='D', s=150)
-        plt.show()
+# 사용자가 지정한 초기 중심점을 사용하여 K-Means 알고리즘을 초기화
+kmeans_3_manual_init = KMeans(n_clusters=3, init=initial_centroids, n_init=1)
+kmeans_3_manual_init.fit(X)
+centroids_3 = kmeans_3.cluster_centers_
+labels_3 = kmeans_3.labels_
+# 시각화
+fig, ax = plt.subplots(2, 2, figsize=(12, 12))
 
-    elif(Choose_num == '2'):
-        z = Iris[int(property_3) - 1]
-        Centroids_z = np.random.uniform(min(z), max(z), k_clusters)
-        Centroids = list(zip(Centroids_x, Centroids_y, Centroids_z))
-        Centroids = np.array(Centroids)
-        Centroids_Old = np.zeros(Centroids.shape)
-        Error = np.ones(k_clusters)
-        Lables = np.zeros(150)
-        Input_data_xyz = list(zip(x, y, z))
+# 3-means 시각화
+for i in range(3):
+    ax[0, 0].scatter(X[y == i, 0], X[y == i, 1], label=f'Iris {i}', c=f'C{i}')
+ax[0, 0].set_title('Actual Iris Species')
+ax[0, 0].set_xlabel('Sepal Length')
+ax[0, 0].set_ylabel('Sepal Width')
+ax[0, 0].legend()
 
-        fig = plt.figure()
-        ax = fig.add_subplot(projection='3d')
-        ax.scatter(x, y, z, alpha=0.5)
-        ax.scatter(Centroids_x, Centroids_y, Centroids_z, alpha=0.5, color="red")
-        plt.show()
+for i in range(3):
+    ax[0, 1].scatter(X[labels_3 == i, 0], X[labels_3 == i, 1], label=f'Cluster {i}', c=f'C{i}', marker='x')
+ax[0, 1].scatter(centroids_3[:, 0], centroids_3[:, 1], marker='o', s=200, c='red', label='Centroids')
+ax[0, 1].set_title('3-Means Clustering')
+ax[0, 1].set_xlabel('Sepal Length')
+ax[0, 1].set_ylabel('Sepal Width')
+ax[0, 1].legend()
+print("--------------------------")
+make_chart(iris_data_A)
+make_chart(iris_data_B)
+make_chart(iris_data_C)
 
-        while(Error.all() != 0):
-            for i in range(150):
-                Distance = np.zeros(k_clusters)
-                for j in range(k_clusters):
-                    Distance[j] = Euclidean_distance(Input_data_xyz[i], Centroids[j])
-                Lables[i] = Distance.argmin()
-            Centroids_Old = deepcopy(Centroids)
-            for i in range(k_clusters):
-                Points = [Input_data_xyz[j] for j in range(len(Input_data_xyz)) if Lables[j] == i]
-                Centroids[i] = np.mean(Points, axis=0)
-            fig = plt.figure()
-            ax = fig.add_subplot(projection='3d')
-            ax.scatter(x, y, z, c=Lables, alpha=0.5)
-            ax.scatter(Centroids_Old[:, 0], Centroids_Old[:, 1], Centroids_Old[:, 2], c='blue')
-            ax.scatter(Centroids[:, 0], Centroids[:, 1], Centroids[:, 2], c='red')
-            plt.show()
-
-            for i in range(k_clusters):
-                Error[i] = Euclidean_distance(Centroids_Old[i],Centroids[i])
-
-        colors = ['r', 'g', 'b']
-        fig = plt.figure()
-        ax = fig.add_subplot(projection='3d')
-        for i in range(k_clusters):
-            Points = np.array([Input_data_xyz[j] for j in range(len(Input_data_xyz)) if Lables[j] == i])
-            ax.scatter(Points[:, 0], Points[:, 1], Points[:, 2], c=colors[i], alpha=0.5)
-            print(colors[i], "의 개수는", len(Points[:, 1]))
-        # 끝이나면 r,g,b의 개수를 출력
-        ax.scatter(Centroids[:, 0], Centroids[:, 1],Centroids[:, 2], marker='D', s=150)
-        plt.show()
-
-    elif (Choose_num == '3'):
-        z = Iris[int(property_3) - 1]
-        s = Iris[int(property_4) - 1]
-        Centroids_z = np.random.uniform(min(z), max(z), k_clusters)
-        Centroids_s = np.random.uniform(min(s), max(s), k_clusters)
-        Centroids = list(zip(Centroids_x, Centroids_y, Centroids_z, Centroids_s))
-        Centroids = np.array(Centroids)
-        Centroids_Old = np.zeros(Centroids.shape)
-        Error = np.ones(k_clusters)
-        Lables = np.zeros(150)
-        Input_data_xyzs = list(zip(x, y, z, s))
+print("Centroids for 3-Means:")
+for i, centroid in enumerate(centroids_3):
+    rounded_centroid = [round(coord, 2) for coord in centroid]
+    print(f"Cluster {i}: {rounded_centroid}")
 
 
-        while(Error.all() != 0):
-            for i in range(150):
-                Distance = np.zeros(k_clusters)
-                for j in range(k_clusters):
-                    Distance[j] = Euclidean_distance(Input_data_xyzs[i], Centroids[j])
-                Lables[i] = Distance.argmin()
-            Centroids_Old = deepcopy(Centroids)
-            for i in range(k_clusters):
-                Points = [Input_data_xyzs[j] for j in range(len(Input_data_xyzs)) if Lables[j] == i]
-                Centroids[i] = np.mean(Points, axis=0)
+def predict_cluster(data, centroids):
+    distances = np.sqrt(np.sum((data - centroids[:, np.newaxis])**2, axis=2))
+    cluster_indices = np.argmin(distances, axis=0)
+    return cluster_indices
 
-            for i in range(k_clusters):
-                Error[i] = Euclidean_distance(Centroids_Old[i],Centroids[i])
+# 각 데이터가 속하는 클러스터 예측
+predicted_clusters_A = predict_cluster(iris_data_A, centroids_3)
+predicted_clusters_B = predict_cluster(iris_data_B, centroids_3)
+predicted_clusters_C = predict_cluster(iris_data_C, centroids_3)
 
-        colors = ['r', 'g', 'b']
-        for i in range(k_clusters):
-            Points = np.array([Input_data_xyzs[j] for j in range(len(Input_data_xyzs)) if Lables[j] == i])
-            print(colors[i], "의 개수는", len(Points[:, 1]))
-
-    elif (Choose_num == '4'):
-        X = np.array(list(zip(Iris[0], Iris[1], Iris[2], Iris[3])))
-        pca = PCA(n_components=2)
-        # PCA객체 생성, 2차원으로 지정
-        principal_components = pca.fit_transform(X)
-        # PCA모델 훈련후 데이터 반환
-        # PCA 결과를 데이터프레임으로 변환
-        df_pca = pd.DataFrame(data=principal_components, columns=['PC1', 'PC2'])
-        x = df_pca['PC1'].values
-        y = df_pca['PC2'].values
-        
-        Centroids_x = np.random.uniform(min(x), max(x), k_clusters)
-        Centroids_y = np.random.uniform(min(y), max(y), k_clusters)
-
-        Centroids = list(zip(Centroids_x, Centroids_y))
-        Centroids = np.array(Centroids)
-        Centroids_Old = np.zeros(Centroids.shape)
-        Error = np.ones(k_clusters)
-        Lables = np.zeros(150)
-        Input_data_xy = np.array(list(zip(x, y)))
-        plt.scatter(x, y, alpha=0.5)
-        plt.scatter(Centroids_x, Centroids_y, alpha=0.5, c='red')
-        plt.show()
-
-        while (Error.all() != 0):
-            for i in range(150):
-                Distance = np.zeros(k_clusters)
-                for j in range(k_clusters):
-                    Distance[j] = Euclidean_distance(Input_data_xy[i], Centroids[j])
-                Lables[i] = Distance.argmin()
-            Centroids_Old = deepcopy(Centroids)
-            for i in range(k_clusters):
-                Points = [Input_data_xy[j] for j in range(len(Input_data_xy)) if Lables[j] == i]
-                Centroids[i] = np.mean(Points, axis=0)
-
-            plt.scatter(x, y, c=Lables, alpha=0.5)
-            plt.scatter(Centroids_Old[:, 0], Centroids_Old[:, 1], c='blue')
-            plt.scatter(Centroids[:, 0], Centroids[:, 1], c='red')
-            plt.show()
-            for i in range(k_clusters):
-                Error[i] = Euclidean_distance(Centroids_Old[i], Centroids[i])
-        colors = ['r', 'g', 'b']
-
-        for i in range(k_clusters):
-            Points = np.array([Input_data_xy[j] for j in range(len(Input_data_xy)) if Lables[j] == i])
-            plt.scatter(Points[:, 0], Points[:, 1], c=colors[i], alpha=0.5)
-            print(colors[i], "의 개수는", len(Points[:, 1]))
-        plt.scatter(Centroids[:, 0], Centroids[:, 1], marker='D', s=150)
-        plt.show()
+# 각 데이터의 클러스터 출력
+print("Predicted Clusters for Iris Data Set A:")
+print(predicted_clusters_A)
+print("Predicted Clusters for Iris Data Set B:")
+print(predicted_clusters_B)
+print("Predicted Clusters for Iris Data Set C:")
+print(predicted_clusters_C)
