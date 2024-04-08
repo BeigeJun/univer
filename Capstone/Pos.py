@@ -42,7 +42,7 @@ while True:
         cv2.line(frame, left_shoulder, right_shoulder, (0, 255, 0), 2)
         shoulder_length = np.linalg.norm(np.array(left_shoulder) - np.array(right_shoulder))
 
-        #어깨 기울기222
+        #어깨 기울기
         inclination = (keypoints[6][1]-keypoints[5][1])/(keypoints[6][0]-keypoints[5][0])
 
         # 눈에 원 그리기
