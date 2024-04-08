@@ -5,19 +5,24 @@ import torch.optim as optim
 from torchvision.datasets import ImageFolder
 from torchvision import datasets, transforms
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 transform = transforms.Compose([
     transforms.Grayscale(),
     transforms.Resize((28, 28)),
     transforms.ToTensor(),
     transforms.Normalize((0.5,), (0.5,))
 ])
-train_image_root = "C:/Users/wns20/PycharmProjects/얼굴인식/face_data"
-test_image_root = "C:/Users/wns20/PycharmProjects/얼굴인식/face_test"
+
+train_image_root = "face_data"
+test_image_root = "face_test"
+
 train_dataset = ImageFolder(root=train_image_root, transform=transform)
-test_loader = ImageFolder(root=test_image_root, transform=transform)
-train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=5, shuffle=True)
-# print("데이터셋 크기:", len(train_loader))
-# print("클래스:", train_loader.classes)
+test_dataset = ImageFolder(root=test_image_root, transform=transform)
+
+train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=50, shuffle=True, pin_memory=True)
+test_loader = torch.utils.data.DataLoader(train_dataset, batch_size=50, shuffle=True, pin_memory=True)
+
 class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()
@@ -42,15 +47,16 @@ class CNN(nn.Module):
         x = F.softmax(x, dim=1)
         return x
 
-cnn = CNN()
+cnn = CNN().to(device)
 criterion = torch.nn.CrossEntropyLoss()
 optimizer = optim.SGD(cnn.parameters(), lr=0.01)
 
 cnn.train()
-for epoch in range(10000):
+for epoch in range(10):
     running_loss = 0.0
     for i, data in enumerate(train_loader):
-        inputs, labels = data
+        inputs, labels = data[0].to(device), data[1].to(device)
+
         optimizer.zero_grad()
 
         outputs = cnn(inputs)
@@ -58,21 +64,25 @@ for epoch in range(10000):
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
-
         running_loss += loss.item()
-    if epoch % 100 == 99:
+    if epoch % 10 == 9:
         print('[%d] loss: %.10f' % (epoch + 1, running_loss / 100))
         running_loss = 0.0
 
-
 cnn.eval()
+torch.save(cnn, 'C:/Users/wns20/PycharmProjects/pythonProject/model.pt')
 correct = 0
+count = 0
 with torch.no_grad():
     for data, target in test_loader:
-        data = data.unsqueeze(1)
+        data = data.to(device)
         output = cnn(data)
+        target = target.to(device)
         pred = output.argmax(dim=1, keepdim=True)
 
         print("예측률 :", output[0][0], ",", output[0][1])
-        correct += pred.eq(torch.LongTensor([target])).sum().item()
-print(correct)
+        correct += pred.eq(target.view_as(pred)).sum().item()
+        count += 1
+
+
+print("Accuracy:", correct / len(test_loader.dataset))
