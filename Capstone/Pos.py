@@ -4,10 +4,65 @@ import torch
 import torchvision.transforms as T
 from PIL import Image
 from torchvision.models.detection import keypointrcnn_resnet50_fpn
+from torchvision import datasets, transforms
+import torch.nn.functional as F
+import torch.nn as nn
 
+class CNN(nn.Module):
+    def __init__(self):
+        super(CNN, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=9, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=9, out_channels=18, kernel_size=3, stride=1, padding=1)
+        self.conv3 = nn.Conv2d(in_channels=18, out_channels=27, kernel_size=3, stride=1, padding=1)
+        self.conv4 = nn.Conv2d(in_channels=27, out_channels=36, kernel_size=3, stride=1, padding=1)
+        self.fc1 = nn.Linear(36, 100)
+        self.fc2 = nn.Linear(100, 2)
+
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        x = F.max_pool2d(x, kernel_size=2, stride=2)
+        x = F.relu(self.conv2(x))
+        x = F.max_pool2d(x, kernel_size=2, stride=2)
+        x = F.relu(self.conv3(x))
+        x = F.max_pool2d(x, kernel_size=2, stride=2)
+        x = F.relu(self.conv4(x))
+        x = F.max_pool2d(x, kernel_size=2, stride=2)
+        x = F.relu(self.fc1(x.view(-1, 36)))
+        x = self.fc2(x)
+        x = F.softmax(x, dim=1)
+        return x
+
+blink_model = CNN()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = keypointrcnn_resnet50_fpn(pretrained=True).to(device).eval()
+blink_model = torch.load('C:/Users/wns20/PycharmProjects/pythonProject/model.pt')
 Time_Count = 1
+
+def preprocess_image(image):
+    transform = transforms.Compose([
+        transforms.Grayscale(),
+        transforms.Resize((28, 28)),
+        transforms.ToTensor(),
+        transforms.Normalize((0.5,), (0.5,))
+    ])
+    image = transform(image)
+    return image
+
+def Eye(image, keypoint, patch_size=28):
+    patch_half_size = patch_size // 2
+    keypoint_x, keypoint_y = keypoint
+
+    image_np = image.cpu().numpy()  # torch tensor를 numpy 배열로 변환
+
+    if keypoint_x - patch_half_size < 0 or keypoint_x + patch_half_size >= image_np.shape[2] or keypoint_y - patch_half_size < 0 or keypoint_y + patch_half_size >= image_np.shape[1]:
+        return None
+
+    patch = image_np[keypoint_y - patch_half_size:keypoint_y + patch_half_size,
+            keypoint_x - patch_half_size:keypoint_x + patch_half_size]
+    patch = preprocess_image(patch)
+    return patch
+
+
 cap = cv2.VideoCapture(0)
 cnt = False
 save_data = [0.0, 0.0]
@@ -48,6 +103,16 @@ while True:
         # 눈에 원 그리기
         cv2.circle(frame, tuple(keypoints[1]), 5, (255, 0, 0), -1)
         cv2.circle(frame, tuple(keypoints[2]), 5, (255, 0, 0), -1)
+        Left_Eye = Eye(input_img, keypoints[1], patch_size=28)
+        Right_Eye = Eye(input_img, keypoints[2], patch_size=28)
+        if Left_Eye == None:
+            print("왼쪽 사망")
+        if Right_Eye == None:
+            print("오른쪽 사망")
+        if Left_Eye != None and Right_Eye != None:
+            Left_Eye_result = blink_model(Left_Eye)
+            Right_Eye_result = blink_model(Right_Eye)
+            print("왼쪽 : ",Left_Eye_result,"오른쪽 : ",Right_Eye_result)
         if cnt == False:
             cnt = True
             save_data[0] = shoulder_length
