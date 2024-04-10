@@ -14,8 +14,7 @@ class CNN(nn.Module):
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=9, kernel_size=3, stride=1, padding=1)
         self.conv2 = nn.Conv2d(in_channels=9, out_channels=18, kernel_size=3, stride=1, padding=1)
         self.conv3 = nn.Conv2d(in_channels=18, out_channels=27, kernel_size=3, stride=1, padding=1)
-        self.conv4 = nn.Conv2d(in_channels=27, out_channels=36, kernel_size=3, stride=1, padding=1)
-        self.fc1 = nn.Linear(36, 100)
+        self.fc1 = nn.Linear(27 * 6 * 3, 100)
         self.fc2 = nn.Linear(100, 2)
 
     def forward(self, x):
@@ -25,12 +24,11 @@ class CNN(nn.Module):
         x = F.max_pool2d(x, kernel_size=2, stride=2)
         x = F.relu(self.conv3(x))
         x = F.max_pool2d(x, kernel_size=2, stride=2)
-        x = F.relu(self.conv4(x))
-        x = F.max_pool2d(x, kernel_size=2, stride=2)
-        x = F.relu(self.fc1(x.view(-1, 36)))
+        x = F.relu(self.fc1(x.view(-1, 27 * 6 * 3)))
         x = self.fc2(x)
         x = F.softmax(x, dim=1)
         return x
+
 
 blink_model = CNN()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -38,30 +36,31 @@ model = keypointrcnn_resnet50_fpn(pretrained=True).to(device).eval()
 blink_model = torch.load('C:/Users/wns20/PycharmProjects/pythonProject/model.pt')
 Time_Count = 1
 
-def preprocess_image(image):
+def Eye(image, keypoint, w_patch_size=28,h_patch_size=28):
+    if image is None:
+        print("이미지가 없습니다.")
+        return None
+
     transform = transforms.Compose([
         transforms.Grayscale(),
-        transforms.Resize((28, 28)),
+        transforms.Resize((w_patch_size, h_patch_size)),
         transforms.ToTensor(),
         transforms.Normalize((0.5,), (0.5,))
     ])
-    image = transform(image)
-    return image
 
-def Eye(image, keypoint, patch_size=28):
-    patch_half_size = patch_size // 2
+    w_patch_half_size = w_patch_size // 2
+    h_patch_half_size = h_patch_size // 2
     keypoint_x, keypoint_y = keypoint
 
-    image_np = image.cpu().numpy()  # torch tensor를 numpy 배열로 변환
+    image_width, image_height = image.size
 
-    if keypoint_x - patch_half_size < 0 or keypoint_x + patch_half_size >= image_np.shape[2] or keypoint_y - patch_half_size < 0 or keypoint_y + patch_half_size >= image_np.shape[1]:
+    if keypoint_x - w_patch_half_size < 0 or keypoint_x + w_patch_half_size >= image_width or keypoint_y - h_patch_half_size < 0 or keypoint_y + h_patch_half_size >= image_height:
         return None
 
-    patch = image_np[keypoint_y - patch_half_size:keypoint_y + patch_half_size,
-            keypoint_x - patch_half_size:keypoint_x + patch_half_size]
-    patch = preprocess_image(patch)
-    return patch
+    patch = image.crop((keypoint_x - w_patch_half_size, keypoint_y - h_patch_half_size, keypoint_x + w_patch_half_size, keypoint_y + h_patch_half_size))
+    patch = transform(patch)
 
+    return patch.to(device)
 
 cap = cv2.VideoCapture(0)
 cnt = False
@@ -73,6 +72,8 @@ while True:
 
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     img = Image.fromarray(frame)
+    image_size = img.size
+    # print("Image size:", image_size)
     trf = T.Compose([T.ToTensor()])
     input_img = trf(img).to(device)
 
@@ -86,33 +87,37 @@ while True:
         box = box.detach().cpu().numpy().astype(int)
         keypoints = keypoints.detach().cpu().numpy().astype(int)[:, :2]
 
-        # # 사람에 대한 영역을 직사각형으로 그림
-        # cv2.rectangle(frame, (box[0], box[1]), (box[2], box[3]), (255, 0, 0), 2)
-
-        # 팔과 다리에 대한 선 그리기
-        # cv2.polylines(frame, [keypoints[5:10:2]], isClosed=False, color=(0, 0, 255), thickness=2)  # 왼쪽 팔
-        # cv2.polylines(frame, [keypoints[6:11:2]], isClosed=False, color=(0, 0, 255), thickness=2)  # 오른쪽 팔
         left_shoulder = tuple(keypoints[5])
         right_shoulder = tuple(keypoints[6])
         cv2.line(frame, left_shoulder, right_shoulder, (0, 255, 0), 2)
         shoulder_length = np.linalg.norm(np.array(left_shoulder) - np.array(right_shoulder))
 
-        #어깨 기울기
         inclination = (keypoints[6][1]-keypoints[5][1])/(keypoints[6][0]-keypoints[5][0])
 
-        # 눈에 원 그리기
         cv2.circle(frame, tuple(keypoints[1]), 5, (255, 0, 0), -1)
         cv2.circle(frame, tuple(keypoints[2]), 5, (255, 0, 0), -1)
-        Left_Eye = Eye(input_img, keypoints[1], patch_size=28)
-        Right_Eye = Eye(input_img, keypoints[2], patch_size=28)
+        Left_Eye = Eye(img, keypoints[1], w_patch_size=50, h_patch_size=28)  # 이미지를 PIL 이미지로 전달
+        Right_Eye = Eye(img, keypoints[2], w_patch_size=50, h_patch_size=28)
+
+        Left_Eye_Message = ""
+        Right_Eye_Message = ""
         if Left_Eye == None:
-            print("왼쪽 사망")
+            Left_Eye_Message = "fail"
         if Right_Eye == None:
-            print("오른쪽 사망")
+            Right_Eye_Message = "fail"
         if Left_Eye != None and Right_Eye != None:
             Left_Eye_result = blink_model(Left_Eye)
             Right_Eye_result = blink_model(Right_Eye)
-            print("왼쪽 : ",Left_Eye_result,"오른쪽 : ",Right_Eye_result)
+            if Left_Eye_result[0][0] > Left_Eye_result[0][1]:
+                print(Left_Eye_result[0][0], Left_Eye_result[0][1])
+                Left_Eye_Message = "Open"
+            else:
+                print(Left_Eye_result[0][0], Left_Eye_result[0][1])
+                Left_Eye_Message = "Close"
+            if Right_Eye_result[0][0] > Right_Eye_result[0][1]:
+                Right_Eye_Message = "Open"
+            else:
+                Right_Eye_Message = "Close"
         if cnt == False:
             cnt = True
             save_data[0] = shoulder_length
@@ -121,8 +126,40 @@ while True:
             if save_data[1] - 0.2 < inclination and save_data[1] + 0.2 > inclination:
                 Time_Count += 1
 
-        cv2.putText(frame, f'Shoulder Length : {shoulder_length:.2f}, Shoulder inclination: {inclination:.2f} Time : {Time_Count:d}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+        cv2.putText(frame, f'Shoulder Length : {shoulder_length:.2f}, Shoulder inclination: {inclination:.2f}, Time : {Time_Count:d}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                     (0, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(frame,
+                    f'Left eye : {Left_Eye_Message}, Right eye : {Right_Eye_Message}',(10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                    (0, 0, 0), 1, cv2.LINE_AA)
+        if Left_Eye is not None:
+            left_eye_patch = Left_Eye.cpu().numpy()
+            left_eye_patch = np.transpose(left_eye_patch, (1, 2, 0))
+            left_eye_patch = cv2.cvtColor(left_eye_patch, cv2.COLOR_GRAY2BGR) * 255
+            left_eye_patch = cv2.resize(left_eye_patch, (50, 28))
+            left_eye_patch = left_eye_patch.astype(np.uint8)
+
+            left_eye_x = keypoints[1][0] - 25
+            left_eye_y = keypoints[1][1] - 14
+
+            frame[left_eye_y:left_eye_y + 28, left_eye_x:left_eye_x + 50] = left_eye_patch
+
+            cv2.rectangle(frame, (left_eye_x, left_eye_y), (left_eye_x + 50, left_eye_y + 28), (0, 255, 0), 1)
+
+        if Right_Eye is not None:
+            right_eye_patch = Right_Eye.cpu().numpy()
+            right_eye_patch = np.transpose(right_eye_patch, (1, 2, 0))
+            right_eye_patch = cv2.cvtColor(right_eye_patch, cv2.COLOR_GRAY2BGR) * 255
+            right_eye_patch = cv2.resize(right_eye_patch, (50, 28))
+            right_eye_patch = right_eye_patch.astype(np.uint8)
+
+            right_eye_x = keypoints[2][0] - 25
+            right_eye_y = keypoints[2][1] - 14
+
+            frame[right_eye_y:right_eye_y + 28,
+            right_eye_x:right_eye_x + 50] = right_eye_patch
+
+            cv2.rectangle(frame, (right_eye_x, right_eye_y), (right_eye_x + 50, right_eye_y + 28), (0, 255, 0), 1)
+
     frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
     cv2.imshow('Pose Detection', frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -130,32 +167,3 @@ while True:
 
 cap.release()
 cv2.destroyAllWindows()
-
-
-
-# keypoint_names = {
-#     0: 'nose',
-#     1: 'left_eye',
-#     2: 'right_eye',
-#     3: 'left_ear',
-#     4: 'right_ear',
-#     5: 'left_shoulder',
-#     6: 'right_shoulder',
-#     7: 'left_elbow',
-#     8: 'right_elbow',
-#     9: 'left_wrist',
-#     10: 'right_wrist',
-#     11: 'left_hip',
-#     12: 'right_hip',
-#     13: 'left_knee',
-#     14: 'right_knee',
-#     15: 'left_ankle',
-#     16: 'right_ankle',
-#     17: 'neck',
-#     18: 'left_palm',
-#     19: 'right_palm',
-#     20: 'spine2(back)',
-#     21: 'spine1(waist)',
-#     22: 'left_instep',
-#     23: 'right_instep'
-# }
