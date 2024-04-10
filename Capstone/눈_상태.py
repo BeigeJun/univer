@@ -9,7 +9,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 transform = transforms.Compose([
     transforms.Grayscale(),
-    transforms.Resize((28, 28)),
+    transforms.Resize((50, 28)),
     transforms.ToTensor(),
     transforms.Normalize((0.5,), (0.5,))
 ])
@@ -21,7 +21,7 @@ train_dataset = ImageFolder(root=train_image_root, transform=transform)
 test_dataset = ImageFolder(root=test_image_root, transform=transform)
 
 train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=50, shuffle=True, pin_memory=True)
-test_loader = torch.utils.data.DataLoader(train_dataset, batch_size=50, shuffle=True, pin_memory=True)
+test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=50, shuffle=True, pin_memory=True)
 
 class CNN(nn.Module):
     def __init__(self):
@@ -29,8 +29,7 @@ class CNN(nn.Module):
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=9, kernel_size=3, stride=1, padding=1)
         self.conv2 = nn.Conv2d(in_channels=9, out_channels=18, kernel_size=3, stride=1, padding=1)
         self.conv3 = nn.Conv2d(in_channels=18, out_channels=27, kernel_size=3, stride=1, padding=1)
-        self.conv4 = nn.Conv2d(in_channels=27, out_channels=36, kernel_size=3, stride=1, padding=1)
-        self.fc1 = nn.Linear(36, 100)
+        self.fc1 = nn.Linear(27 * 6 * 3, 100)
         self.fc2 = nn.Linear(100, 2)
 
     def forward(self, x):
@@ -40,19 +39,20 @@ class CNN(nn.Module):
         x = F.max_pool2d(x, kernel_size=2, stride=2)
         x = F.relu(self.conv3(x))
         x = F.max_pool2d(x, kernel_size=2, stride=2)
-        x = F.relu(self.conv4(x))
-        x = F.max_pool2d(x, kernel_size=2, stride=2)
-        x = F.relu(self.fc1(x.view(-1, 36)))
+        x = F.relu(self.fc1(x.view(-1, 27 * 6 * 3)))
         x = self.fc2(x)
         x = F.softmax(x, dim=1)
         return x
+
+
+
 
 cnn = CNN().to(device)
 criterion = torch.nn.CrossEntropyLoss()
 optimizer = optim.SGD(cnn.parameters(), lr=0.01)
 
 cnn.train()
-for epoch in range(10):
+for epoch in range(1000):
     running_loss = 0.0
     for i, data in enumerate(train_loader):
         inputs, labels = data[0].to(device), data[1].to(device)
