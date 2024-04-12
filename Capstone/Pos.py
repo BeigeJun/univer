@@ -29,102 +29,107 @@ class CNN(nn.Module):
         x = F.softmax(x, dim=1)
         return x
 
+class Eye_Pos_Time:
+    #눈 부분 추출
+    def Eye(self, image, keypoint, w_size, h_size):
+        if image is None:
+            print("이미지가 없습니다.")
+            return None
 
-#눈 부분 추출
-def Eye(image, keypoint, w_size, h_size):
-    if image is None:
-        print("이미지가 없습니다.")
-        return None
+        transform = transforms.Compose([
+            transforms.Grayscale(),
+            transforms.Resize((w_size, h_size)),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5,), (0.5,))
+        ])
 
-    transform = transforms.Compose([
-        transforms.Grayscale(),
-        transforms.Resize((w_size, h_size)),
-        transforms.ToTensor(),
-        transforms.Normalize((0.5,), (0.5,))
-    ])
+        w_patch_half_size = w_size // 2
+        h_patch_half_size = h_size // 2
+        keypoint_x, keypoint_y = keypoint
 
-    w_patch_half_size = w_size // 2
-    h_patch_half_size = h_size // 2
-    keypoint_x, keypoint_y = keypoint
+        image_width, image_height = image.size
 
-    image_width, image_height = image.size
+        if keypoint_x - w_patch_half_size < 0 or keypoint_x + w_patch_half_size >= image_width or keypoint_y - h_patch_half_size < 0 or keypoint_y + h_patch_half_size >= image_height:
+            return None
 
-    if keypoint_x - w_patch_half_size < 0 or keypoint_x + w_patch_half_size >= image_width or keypoint_y - h_patch_half_size < 0 or keypoint_y + h_patch_half_size >= image_height:
-        return None
+        patch = image.crop((keypoint_x - w_patch_half_size, keypoint_y - h_patch_half_size, keypoint_x + w_patch_half_size, keypoint_y + h_patch_half_size))
+        patch = transform(patch)
 
-    patch = image.crop((keypoint_x - w_patch_half_size, keypoint_y - h_patch_half_size, keypoint_x + w_patch_half_size, keypoint_y + h_patch_half_size))
-    patch = transform(patch)
+        return patch.to(device)
 
-    return patch.to(device)
+    #눈 부분에 사각형 그리기
+    def Eye_Rec(self, EYE,num,w_size,h_size, frame):
+        w_size_half = w_size//2
+        h_size_half = h_size//2
+        if EYE is not None:
+            Eye_patch = EYE.cpu().numpy()
+            Eye_patch = np.transpose(Eye_patch, (1, 2, 0))
+            Eye_patch = cv2.cvtColor(Eye_patch, cv2.COLOR_GRAY2BGR) * 255
+            Eye_patch = cv2.resize(Eye_patch, (w_size, h_size))
+            Eye_patch = Eye_patch.astype(np.uint8)
 
-#눈 부분에 사각형 그리기
-def Eye_Rec(EYE,num,w_size,h_size):
-    w_size_half = w_size//2
-    h_size_half = h_size//2
-    if EYE is not None:
-        Eye_patch = EYE.cpu().numpy()
-        Eye_patch = np.transpose(Eye_patch, (1, 2, 0))
-        Eye_patch = cv2.cvtColor(Eye_patch, cv2.COLOR_GRAY2BGR) * 255
-        Eye_patch = cv2.resize(Eye_patch, (w_size, h_size))
-        Eye_patch = Eye_patch.astype(np.uint8)
+            Eye_x = keypoints[num][0] - w_size_half
+            Eye_y = keypoints[num][1] - h_size_half
 
-        Eye_x = keypoints[num][0] - w_size_half
-        Eye_y = keypoints[num][1] - h_size_half
+            frame[Eye_y:Eye_y + h_size, Eye_x:Eye_x + w_size] = Eye_patch
 
-        frame[Eye_y:Eye_y + h_size, Eye_x:Eye_x + w_size] = Eye_patch
-
-        cv2.rectangle(frame, (Eye_x, Eye_y), (Eye_x + w_size, Eye_y + h_size), (0, 255, 0), 1)
+            cv2.rectangle(frame, (Eye_x, Eye_y), (Eye_x + w_size, Eye_y + h_size), (0, 255, 0), 1)
 
 
-#눈 감긴건지 확인
-def Eye_state(L_Eye, R_Eye, f):
-    Left_Eye_Message = ""
-    Right_Eye_Message = ""
-    if L_Eye == None:
-        Left_Eye_Message = "fail"
-    if R_Eye == None:
-        Right_Eye_Message = "fail"
-    if L_Eye != None and R_Eye != None:
-        Left_Eye_result = blink_model(L_Eye)
-        Right_Eye_result = blink_model(R_Eye)
-        if Left_Eye_result[0][0] > Left_Eye_result[0][1]:
-            Left_Eye_Message = "Open"
-        else:
-            Left_Eye_Message = "Close"
-        if Right_Eye_result[0][0] > Right_Eye_result[0][1]:
-            Right_Eye_Message = "Open"
-        else:
-            Right_Eye_Message = "Close"
+    #눈 감긴건지 확인
+    def Eye_state(self, L_Eye, R_Eye, frame):
+        Left_Eye_Message = ""
+        Right_Eye_Message = ""
+        if L_Eye == None:
+            Left_Eye_Message = "fail"
+        if R_Eye == None:
+            Right_Eye_Message = "fail"
+        if L_Eye != None and R_Eye != None:
+            Left_Eye_result = blink_model(L_Eye)
+            Right_Eye_result = blink_model(R_Eye)
+            if Left_Eye_result[0][0] > Left_Eye_result[0][1]:
+                Left_Eye_Message = "Open"
+            else:
+                Left_Eye_Message = "Close"
+            if Right_Eye_result[0][0] > Right_Eye_result[0][1]:
+                Right_Eye_Message = "Open"
+            else:
+                Right_Eye_Message = "Close"
 
-    cv2.putText(f,
-                f'Left eye : {Left_Eye_Message}, Right eye : {Right_Eye_Message}', (10, 60), cv2.FONT_HERSHEY_SIMPLEX,
-                0.5, (0, 0, 0), 1, cv2.LINE_AA)
+        cv2.putText(frame,
+                    f'Left eye : {Left_Eye_Message}, Right eye : {Right_Eye_Message}', (10, 60), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (0, 0, 0), 1, cv2.LINE_AA)
 
-#어깨 길이, 기울기 측정
-def shoulder_state(L_shoulder, R_shoulder, FRAME):
-    cv2.line(FRAME, L_shoulder, R_shoulder, (0, 255, 0), 2)
-    length = np.linalg.norm(np.array(L_shoulder) - np.array(R_shoulder))
-    inclination = (R_shoulder[1] - L_shoulder[1]) / (R_shoulder[0] - L_shoulder[0])
-    cv2.putText(frame,
-                f'Shoulder Length : {length:.2f}, Shoulder inclination: {inclination:.2f}',
-                (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                (0, 0, 0), 1, cv2.LINE_AA)
-    return length, inclination
+    #어깨 길이, 기울기 측정
+    def shoulder_state(self, L_shoulder, R_shoulder, FRAME):
+        cv2.line(FRAME, L_shoulder, R_shoulder, (0, 255, 0), 2)
+        length = np.linalg.norm(np.array(L_shoulder) - np.array(R_shoulder))
+        inclination = (R_shoulder[1] - L_shoulder[1]) / (R_shoulder[0] - L_shoulder[0])
+        cv2.putText(frame,
+                    f'Shoulder Length : {length:.2f}, Shoulder inclination: {inclination:.2f}',
+                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                    (0, 0, 0), 1, cv2.LINE_AA)
+        return length, inclination
 
-#시간 업데이트 및 화면 출력
-def Time_show(SAVE_DATA,TIME,SHOULDER_LENGTH,SHOULDER_INCLINATION):
-    if SAVE_DATA[0] - 10 < SHOULDER_LENGTH and SAVE_DATA[0] + 10 > SHOULDER_LENGTH:
-        if SAVE_DATA[1] - 0.2 < SHOULDER_INCLINATION and SAVE_DATA[1] + 0.2 > SHOULDER_INCLINATION:
-            TIME += 1
-    cv2.putText(frame,
-                f'Time : {TIME:d}',
-                (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                (0, 0, 0), 1, cv2.LINE_AA)
-    return TIME
+    #시간 업데이트 및 화면 출력
+    def Time_show(self, SAVE_DATA,TIME,SHOULDER_LENGTH,SHOULDER_INCLINATION, SHOULDER_X, SHOULDER_Y):
+        if SAVE_DATA[0] - 10 < SHOULDER_LENGTH and SAVE_DATA[0] + 10 > SHOULDER_LENGTH:
+            if SAVE_DATA[1] - 0.2 < SHOULDER_INCLINATION and SAVE_DATA[1] + 0.2 > SHOULDER_INCLINATION:
+                if SAVE_DATA[2] - 10.0 < SHOULDER_X and SAVE_DATA[2] + 10.0 > SHOULDER_X:
+                    if SAVE_DATA[3] - 10.0 < SHOULDER_Y and SAVE_DATA[3] + 10.0 > SHOULDER_Y:
+                        TIME += 1
+        cv2.putText(frame,
+                    f'Time : {TIME:d}',
+                    (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                    (0, 0, 0), 1, cv2.LINE_AA)
+        return TIME
 
-blink_model = CNN()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = keypointrcnn_resnet50_fpn(pretrained=True).to(device).eval()
+
+EPT = Eye_Pos_Time()
+
+blink_model = CNN()
 blink_model = torch.load('C:/Users/SeoJun/PycharmProjects/capstone/model.pt')
 
 Time_Count = 1
@@ -132,7 +137,8 @@ Eye_Detect_W = 50
 Eye_Detect_H = 28
 cap = cv2.VideoCapture(0)
 cnt = False
-save_data = [0.0, 0.0]
+save_data = [0.0, 0.0, 0.0, 0.0]
+
 while True:
     ret, frame = cap.read()
     if not ret:
@@ -159,22 +165,27 @@ while True:
         left_shoulder = tuple(keypoints[5])
         right_shoulder = tuple(keypoints[6])
 
-        shoulder_length, shoulder_inclination = shoulder_state(left_shoulder, right_shoulder, frame)
+        average_X_shouler = (left_shoulder[0] + right_shoulder[0]) / 2
+        average_Y_shouler = (left_shoulder[1] + right_shoulder[1]) / 2
 
-        Left_Eye = Eye(img, keypoints[1], Eye_Detect_W, Eye_Detect_H)
-        Right_Eye = Eye(img, keypoints[2], Eye_Detect_W,  Eye_Detect_H)
+        shoulder_length, shoulder_inclination = EPT.shoulder_state(left_shoulder, right_shoulder, frame)
 
-        Eye_state(Left_Eye, Right_Eye, frame)
+        Left_Eye = EPT.Eye(img, keypoints[1], Eye_Detect_W, Eye_Detect_H)
+        Right_Eye = EPT.Eye(img, keypoints[2], Eye_Detect_W,  Eye_Detect_H)
 
-        Eye_Rec(Left_Eye, 1, Eye_Detect_W, Eye_Detect_H)
-        Eye_Rec(Right_Eye, 2, Eye_Detect_W, Eye_Detect_H)
+        EPT.Eye_state(Left_Eye, Right_Eye, frame)
+
+        EPT.Eye_Rec(Left_Eye, 1, Eye_Detect_W, Eye_Detect_H, frame)
+        EPT.Eye_Rec(Right_Eye, 2, Eye_Detect_W, Eye_Detect_H, frame)
 
         if cnt == False:
             cnt = True
             save_data[0] = shoulder_length
             save_data[1] = shoulder_inclination
+            save_data[2] = average_X_shouler
+            save_data[3] = average_Y_shouler
 
-        Time_Count = Time_show(save_data, Time_Count, shoulder_length, shoulder_inclination)
+        Time_Count = EPT.Time_show(save_data, Time_Count, shoulder_length, shoulder_inclination, average_X_shouler, average_Y_shouler)
 
     frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
     cv2.imshow('Pose Detection', frame)
