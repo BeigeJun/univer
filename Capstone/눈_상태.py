@@ -44,15 +44,12 @@ class CNN(nn.Module):
         x = F.softmax(x, dim=1)
         return x
 
-
-
-
 cnn = CNN().to(device)
 criterion = torch.nn.CrossEntropyLoss()
-optimizer = optim.SGD(cnn.parameters(), lr=0.01)
+optimizer = optim.SGD(cnn.parameters(), lr=0.05)
 
 cnn.train()
-for epoch in range(10):
+for epoch in range(1000):
 
     running_loss = 0.0
     for i, data in enumerate(train_loader):
