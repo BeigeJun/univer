@@ -99,6 +99,7 @@ class Eye_Pos_Time:
         cv2.putText(frame,
                     f'Left eye : {Left_Eye_Message}, Right eye : {Right_Eye_Message}', (10, 60), cv2.FONT_HERSHEY_SIMPLEX,
                     0.5, (0, 0, 0), 1, cv2.LINE_AA)
+        return Left_Eye_Message, Right_Eye_Message
 
     #어깨 길이, 기울기 측정
     def shoulder_state(self, L_shoulder, R_shoulder, FRAME):
@@ -112,12 +113,17 @@ class Eye_Pos_Time:
         return length, inclination
 
     #시간 업데이트 및 화면 출력
-    def Time_show(self, SAVE_DATA,TIME,SHOULDER_LENGTH,SHOULDER_INCLINATION, SHOULDER_X, SHOULDER_Y):
-        if SAVE_DATA[0] - 10 < SHOULDER_LENGTH and SAVE_DATA[0] + 10 > SHOULDER_LENGTH:
-            if SAVE_DATA[1] - 0.2 < SHOULDER_INCLINATION and SAVE_DATA[1] + 0.2 > SHOULDER_INCLINATION:
-                if SAVE_DATA[2] - 10.0 < SHOULDER_X and SAVE_DATA[2] + 10.0 > SHOULDER_X:
-                    if SAVE_DATA[3] - 10.0 < SHOULDER_Y and SAVE_DATA[3] + 10.0 > SHOULDER_Y:
-                        TIME += 1
+    def Time_show(self, SAVE_DATA, TIME, SHOULDER_LENGTH, SHOULDER_INCLINATION, SHOULDER_X, SHOULDER_Y, EYE_CLOSE_TIME, AVERAGE_Y_EYE):
+        shoulder_length_condition = SAVE_DATA[0] - 10 < SHOULDER_LENGTH and SAVE_DATA[0] + 10 > SHOULDER_LENGTH
+        shoulder_inclination_condition = SAVE_DATA[1] - 0.2 < SHOULDER_INCLINATION and SAVE_DATA[1] + 0.2 > SHOULDER_INCLINATION
+        shoulder_x_condition = SAVE_DATA[2] - 10.0 < SHOULDER_X and SAVE_DATA[2] + 10.0 > SHOULDER_X
+        shoulder_y_condition = SAVE_DATA[3] - 10.0 < SHOULDER_Y and SAVE_DATA[3] + 10.0 > SHOULDER_Y
+        eye_close_condition = EYE_CLOSE_TIME < 10
+        average_y_eye_condtion = SAVE_DATA[4] - 10.0 < AVERAGE_Y_EYE and SAVE_DATA[4] + 10.0 > AVERAGE_Y_EYE
+
+        if shoulder_length_condition and shoulder_inclination_condition and shoulder_x_condition and shoulder_y_condition and eye_close_condition and average_y_eye_condtion:
+            TIME += 1
+
         cv2.putText(frame,
                     f'Time : {TIME:d}',
                     (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
@@ -132,12 +138,21 @@ EPT = Eye_Pos_Time()
 blink_model = CNN()
 blink_model = torch.load('C:/Users/SeoJun/PycharmProjects/capstone/model.pt')
 
-Time_Count = 1
+Time_Count = 0
+Eye_Close_Time = 0
 Eye_Detect_W = 50
 Eye_Detect_H = 28
 cap = cv2.VideoCapture(0)
 cnt = False
-save_data = [0.0, 0.0, 0.0, 0.0]
+save_data = [0.0, 0.0, 0.0, 0.0, 0.0]
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+    cv2.imshow('Pose Detection', frame)
+    if cv2.waitKey(1) & 0xFF == ord('s'):
+        break
 
 while True:
     ret, frame = cap.read()
@@ -165,6 +180,8 @@ while True:
         left_shoulder = tuple(keypoints[5])
         right_shoulder = tuple(keypoints[6])
 
+        average_Y_Eye = (keypoints[1][1] + keypoints[2][1]) / 2
+
         average_X_shouler = (left_shoulder[0] + right_shoulder[0]) / 2
         average_Y_shouler = (left_shoulder[1] + right_shoulder[1]) / 2
 
@@ -173,7 +190,12 @@ while True:
         Left_Eye = EPT.Eye(img, keypoints[1], Eye_Detect_W, Eye_Detect_H)
         Right_Eye = EPT.Eye(img, keypoints[2], Eye_Detect_W,  Eye_Detect_H)
 
-        EPT.Eye_state(Left_Eye, Right_Eye, frame)
+        Left_Eye_State, Right_Eye_State = EPT.Eye_state(Left_Eye, Right_Eye, frame)
+
+        if Left_Eye_State == 'Close' or Right_Eye_State == 'Close':
+            Eye_Close_Time += 1
+        else:
+            Eye_Close_Time = 0
 
         EPT.Eye_Rec(Left_Eye, 1, Eye_Detect_W, Eye_Detect_H, frame)
         EPT.Eye_Rec(Right_Eye, 2, Eye_Detect_W, Eye_Detect_H, frame)
@@ -184,8 +206,9 @@ while True:
             save_data[1] = shoulder_inclination
             save_data[2] = average_X_shouler
             save_data[3] = average_Y_shouler
+            save_data[4] = average_Y_Eye
 
-        Time_Count = EPT.Time_show(save_data, Time_Count, shoulder_length, shoulder_inclination, average_X_shouler, average_Y_shouler)
+        Time_Count = EPT.Time_show(save_data, Time_Count, shoulder_length, shoulder_inclination, average_X_shouler, average_Y_shouler, Eye_Close_Time, average_Y_Eye)
 
     frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
     cv2.imshow('Pose Detection', frame)
