@@ -58,9 +58,9 @@ class Eye_Pos_Time:
         return patch.to(device)
 
     #눈 부분에 사각형 그리기
-    def Eye_Rec(self, EYE,num,w_size,h_size, frame):
-        w_size_half = w_size//2
-        h_size_half = h_size//2
+    def Eye_Rec(self, EYE, num, w_size, h_size, frame, eye_state):
+        w_size_half = w_size // 2
+        h_size_half = h_size // 2
         if EYE is not None:
             Eye_patch = EYE.cpu().numpy()
             Eye_patch = np.transpose(Eye_patch, (1, 2, 0))
@@ -75,6 +75,9 @@ class Eye_Pos_Time:
 
             cv2.rectangle(frame, (Eye_x, Eye_y), (Eye_x + w_size, Eye_y + h_size), (0, 255, 0), 1)
 
+            text = "OPEN" if eye_state == "Open" else "CLOSED"
+            text_color = (0, 255, 0) if eye_state == "Open" else (255, 0, 0)
+            cv2.putText(frame, text, (Eye_x, Eye_y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.3, text_color, 1, cv2.LINE_AA)
 
     #눈 감긴건지 확인
     def Eye_state(self, L_Eye, R_Eye, frame):
@@ -96,9 +99,9 @@ class Eye_Pos_Time:
             else:
                 Right_Eye_Message = "Close"
 
-        cv2.putText(frame,
-                    f'Left eye : {Left_Eye_Message}, Right eye : {Right_Eye_Message}', (10, 60), cv2.FONT_HERSHEY_SIMPLEX,
-                    0.5, (0, 0, 0), 1, cv2.LINE_AA)
+        # cv2.putText(frame,
+        #             f'Left eye : {Left_Eye_Message}, Right eye : {Right_Eye_Message}', (10, 60), cv2.FONT_HERSHEY_SIMPLEX,
+        #             0.5, (0, 0, 0), 1, cv2.LINE_AA)
         return Left_Eye_Message, Right_Eye_Message
 
     #어깨 길이, 기울기 측정
@@ -126,7 +129,7 @@ class Eye_Pos_Time:
 
         cv2.putText(frame,
                     f'Time : {TIME:d}',
-                    (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                    (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                     (0, 0, 0), 1, cv2.LINE_AA)
         return TIME
 
@@ -136,7 +139,7 @@ model = keypointrcnn_resnet50_fpn(pretrained=True).to(device).eval()
 EPT = Eye_Pos_Time()
 
 blink_model = CNN()
-blink_model = torch.load('C:/Users/SeoJun/PycharmProjects/capstone/model.pt')
+blink_model = torch.load('C:/Users/wns20/PycharmProjects/pythonProject/model.pt')
 
 Time_Count = 0
 Eye_Close_Time = 0
@@ -192,13 +195,13 @@ while True:
 
         Left_Eye_State, Right_Eye_State = EPT.Eye_state(Left_Eye, Right_Eye, frame)
 
+        EPT.Eye_Rec(Left_Eye, 1, Eye_Detect_W, Eye_Detect_H, frame, Left_Eye_State)
+        EPT.Eye_Rec(Right_Eye, 2, Eye_Detect_W, Eye_Detect_H, frame, Right_Eye_State)
+
         if Left_Eye_State == 'Close' or Right_Eye_State == 'Close':
             Eye_Close_Time += 1
         else:
             Eye_Close_Time = 0
-
-        EPT.Eye_Rec(Left_Eye, 1, Eye_Detect_W, Eye_Detect_H, frame)
-        EPT.Eye_Rec(Right_Eye, 2, Eye_Detect_W, Eye_Detect_H, frame)
 
         if cnt == False:
             cnt = True
