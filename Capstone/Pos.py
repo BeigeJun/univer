@@ -221,6 +221,13 @@ while True:
 
     frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
     cv2.imshow('Pose Detection', frame)
+    if cv2.waitKey(1) & 0xFF == ord('r'):
+        cnt = True
+        save_data[0] = shoulder_length
+        save_data[1] = shoulder_inclination
+        save_data[2] = average_X_shouler
+        save_data[3] = average_Y_shouler
+        save_data[4] = average_Y_Eye
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
