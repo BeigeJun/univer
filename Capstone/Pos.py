@@ -139,7 +139,7 @@ model = keypointrcnn_resnet50_fpn(pretrained=True).to(device).eval()
 EPT = Eye_Pos_Time()
 
 blink_model = CNN()
-blink_model = torch.load('C:/Users/wns20/PycharmProjects/pythonProject/model.pt')
+blink_model = torch.load('C:/Users/SeoJun/PycharmProjects/capstone/model.pt')
 
 Time_Count = 0
 Eye_Close_Time = 0
@@ -153,6 +153,12 @@ while True:
     ret, frame = cap.read()
     if not ret:
         break
+    cv2.line(frame, (frame.shape[1] // 7 * 3, frame.shape[0] // 3 + 15), (frame.shape[1] // 7 * 3, frame.shape[0] // 2), (255, 0, 0), 2)
+    cv2.line(frame, (frame.shape[1] // 7 * 4, frame.shape[0] // 3 + 15), (frame.shape[1] // 7 * 4, frame.shape[0] // 2), (255, 0, 0), 2)
+    cv2.circle(frame, (frame.shape[1] // 2, frame.shape[0] // 4), 70,(255,0,0), 2)
+    cv2.line(frame, (frame.shape[1] // 4, frame.shape[0] // 2), (frame.shape[1] // 4 * 3, frame.shape[0] // 2),(255, 0, 0), 2)
+    cv2.line(frame, (frame.shape[1] // 4, frame.shape[0] // 2), (frame.shape[1] // 7 * 1, frame.shape[0]),(255, 0, 0), 2)
+    cv2.line(frame, (frame.shape[1] // 4 * 3, frame.shape[0] // 2), (frame.shape[1] // 7 * 6, frame.shape[0]), (255, 0, 0), 2)
     cv2.imshow('Pose Detection', frame)
     if cv2.waitKey(1) & 0xFF == ord('s'):
         break
