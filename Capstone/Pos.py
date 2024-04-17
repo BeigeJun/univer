@@ -7,6 +7,7 @@ from torchvision.models.detection import keypointrcnn_resnet50_fpn
 from torchvision import transforms
 import torch.nn.functional as F
 import torch.nn as nn
+import win32api
 
 class CNN(nn.Module):
     def __init__(self):
@@ -109,10 +110,10 @@ class Eye_Pos_Time:
         cv2.line(FRAME, L_shoulder, R_shoulder, (0, 255, 0), 2)
         length = np.linalg.norm(np.array(L_shoulder) - np.array(R_shoulder))
         inclination = (R_shoulder[1] - L_shoulder[1]) / (R_shoulder[0] - L_shoulder[0])
-        cv2.putText(frame,
-                    f'Shoulder Length : {length:.2f}, Shoulder inclination: {inclination:.2f}',
-                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                    (0, 0, 0), 1, cv2.LINE_AA)
+        # cv2.putText(frame,
+        #             f'Shoulder Length : {length:.2f}, Shoulder inclination: {inclination:.2f}',
+        #             (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+        #             (0, 0, 0), 1, cv2.LINE_AA)
         return length, inclination
 
     #시간 업데이트 및 화면 출력
@@ -126,6 +127,18 @@ class Eye_Pos_Time:
 
         if shoulder_length_condition and shoulder_inclination_condition and shoulder_x_condition and shoulder_y_condition and eye_close_condition and average_y_eye_condtion:
             TIME += 1
+        elif shoulder_length_condition == False:
+            win32api.MessageBox(0, "어깨의 위치가 변했습니다", "title", 16)
+        elif shoulder_inclination_condition == False:
+            win32api.MessageBox(0, "어깨가 삐뚫어 졌습니다.", "title", 16)
+        elif shoulder_x_condition == False:
+            win32api.MessageBox(0, "자세가 옆으로 기울어졌습니다.", "title", 16)
+        elif shoulder_y_condition == False:
+            win32api.MessageBox(0, "몸이 앞 뒤로 움직였습니다.", "title", 16)
+        elif eye_close_condition == False:
+            win32api.MessageBox(0, "눈을 뜨세요.", "title", 16)
+        elif average_y_eye_condtion == False:
+            win32api.MessageBox(0, "목이 앞으로 나왔습니다.", "title", 16)
 
         cv2.putText(frame,
                     f'Time : {TIME:d}',
@@ -177,7 +190,11 @@ while True:
         out = model([input_img])[0]
 
     THRESHOLD = 0.95
-
+    shoulder_length = 0
+    shoulder_inclination = 0
+    average_X_shouler = 0
+    average_Y_shouler = 0
+    average_Y_Eye = 0
     for score, keypoints in zip(out['scores'], out['keypoints']):
 
         score = score.detach().cpu().numpy()
