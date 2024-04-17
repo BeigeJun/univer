@@ -118,28 +118,69 @@ class Eye_Pos_Time:
 
     #시간 업데이트 및 화면 출력
     def Time_show(self, SAVE_DATA, TIME, SHOULDER_LENGTH, SHOULDER_INCLINATION, SHOULDER_X, SHOULDER_Y, EYE_CLOSE_TIME, AVERAGE_Y_EYE):
-        shoulder_length_condition = SAVE_DATA[0] - 10 < SHOULDER_LENGTH and SAVE_DATA[0] + 10 > SHOULDER_LENGTH
-        shoulder_inclination_condition = SAVE_DATA[1] - 0.2 < SHOULDER_INCLINATION and SAVE_DATA[1] + 0.2 > SHOULDER_INCLINATION
-        shoulder_x_condition = SAVE_DATA[2] - 10.0 < SHOULDER_X and SAVE_DATA[2] + 10.0 > SHOULDER_X
-        shoulder_y_condition = SAVE_DATA[3] - 10.0 < SHOULDER_Y and SAVE_DATA[3] + 10.0 > SHOULDER_Y
-        eye_close_condition = EYE_CLOSE_TIME < 10
-        average_y_eye_condtion = SAVE_DATA[4] - 10.0 < AVERAGE_Y_EYE and SAVE_DATA[4] + 10.0 > AVERAGE_Y_EYE
 
-        if shoulder_length_condition and shoulder_inclination_condition and shoulder_x_condition and shoulder_y_condition and eye_close_condition and average_y_eye_condtion:
+        message = ""
+        shoulder_length_condition = 0
+        shoulder_inclination_condition = 0
+        shoulder_x_condition = 0
+        shoulder_y_condition = 0
+        eye_close_condition = 0
+        average_y_eye_condtion = 0
+        if SAVE_DATA[0] - 10 < SHOULDER_LENGTH and SAVE_DATA[0] + 10 > SHOULDER_LENGTH:
+            shoulder_length_condition = 0
+        elif SAVE_DATA[0] - 10 > SHOULDER_LENGTH:
+            shoulder_length_condition = 1
+            message += "몸이 앞으로 기움. "
+        elif SAVE_DATA[0] + 10 < SHOULDER_LENGTH:
+            shoulder_length_condition = 2
+            message += "몸이 뒤로 기움. "
+
+        if SAVE_DATA[1] - 0.2 < SHOULDER_INCLINATION and SAVE_DATA[1] + 0.2 > SHOULDER_INCLINATION:
+            shoulder_inclination_condition = 0
+        elif SAVE_DATA[1] - 0.2 > SHOULDER_INCLINATION:
+            shoulder_inclination_condition = 1
+            message += "어깨가 왼쪽으로 기움. "
+        elif SAVE_DATA[1] + 0.2 < SHOULDER_INCLINATION:
+            shoulder_inclination_condition = 2
+            message += "어깨가 오른쪽으로 기움. "
+
+        if SAVE_DATA[2] - 10.0 < SHOULDER_X and SAVE_DATA[2] + 10.0 > SHOULDER_X:
+            shoulder_x_condition = 0
+        elif SAVE_DATA[2] - 10.0 > SHOULDER_X:
+            shoulder_x_condition = 1
+            message += "몸이 왼쪽으로 움직임. "
+
+        elif SAVE_DATA[2] + 10.0 < SHOULDER_X:
+            shoulder_x_condition = 2
+            message += "몸이 오른쪽으로 움직임. "
+
+        if SAVE_DATA[3] - 10.0 < SHOULDER_Y and SAVE_DATA[3] + 10.0 > SHOULDER_Y:
+            shoulder_y_condition = 0
+        elif SAVE_DATA[3] - 10.0 > SHOULDER_Y:
+            shoulder_y_condition = 1
+            message += "몸이 뒤로 기움. "
+        elif SAVE_DATA[3] + 10.0 < SHOULDER_Y:
+            shoulder_y_condition = 2
+            message += "몸이 앞으로 기움. "
+
+        if EYE_CLOSE_TIME < 10:
+            eye_close_condition = 0
+        else:
+            eye_close_condition = 1
+            message += "눈이 감김. "
+
+        if SAVE_DATA[4] - 10.0 < AVERAGE_Y_EYE and SAVE_DATA[4] + 10.0 > AVERAGE_Y_EYE:
+            average_y_eye_condtion = 0
+        elif SAVE_DATA[4] - 10.0 < AVERAGE_Y_EYE:
+            average_y_eye_condtion = 1
+            message += "목이 앞으로 기우러짐. "
+        elif SAVE_DATA[4] + 10.0 < AVERAGE_Y_EYE:
+            average_y_eye_condtion = 2
+            message += "목이 뒤로 기우러짐. "
+
+        if shoulder_length_condition == 0 and shoulder_inclination_condition == 0  and shoulder_x_condition == 0 and shoulder_y_condition == 0 and eye_close_condition == 0 and average_y_eye_condtion == 0:
             TIME += 1
-        elif shoulder_length_condition == False:
-            win32api.MessageBox(0, "어깨의 위치가 변했습니다", "title", 16)
-        elif shoulder_inclination_condition == False:
-            win32api.MessageBox(0, "어깨가 삐뚫어 졌습니다.", "title", 16)
-        elif shoulder_x_condition == False:
-            win32api.MessageBox(0, "자세가 옆으로 기울어졌습니다.", "title", 16)
-        elif shoulder_y_condition == False:
-            win32api.MessageBox(0, "몸이 앞 뒤로 움직였습니다.", "title", 16)
-        elif eye_close_condition == False:
-            win32api.MessageBox(0, "눈을 뜨세요.", "title", 16)
-        elif average_y_eye_condtion == False:
-            win32api.MessageBox(0, "목이 앞으로 나왔습니다.", "title", 16)
-
+        print(message)
         cv2.putText(frame,
                     f'Time : {TIME:d}',
                     (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
