@@ -28,10 +28,44 @@ def Euclidean_distance(a, b):
 
 # 유클리드 거리 구하는 함수
 
-def PRINT_DIS():
-    print(Euclidean_distance(Centroids[0], Centroids[1]))
-    print(Euclidean_distance(Centroids[1], Centroids[2]))
-    print(Euclidean_distance(Centroids[0], Centroids[2]))
+def PRINT_DIS(data,lable):
+    LIST_NUM_1 = []
+    LIST_NUM_2 = []
+    LIST_NUM_3 = []
+    for i in range(150):
+      if(lable[i]) == 0:
+        LIST_NUM_1.append(i)
+      if(lable[i]) == 1:
+        LIST_NUM_2.append(i)
+      if(lable[i]) == 2:
+        LIST_NUM_3.append(i)
+
+    print("------------------------해당 클러스터 당 거리-------------------------------------")
+    print("1번째 군집과 데이터들의 거리 : ")
+    for j in range(len(LIST_NUM_1)):
+        print(LIST_NUM_1[j],"와 거리", Euclidean_distance(Centroids[0], data[j]))
+    print("2번째 군집과 데이터들의 거리 : ")
+    for j in range(len(LIST_NUM_2)):
+        print(LIST_NUM_2[j],"와 거리", Euclidean_distance(Centroids[0], data[j]))
+    print("3번째 군집과 데이터들의 거리 : ")
+    for j in range(len(LIST_NUM_3)):
+        print(LIST_NUM_3[j],"와 거리", Euclidean_distance(Centroids[0], data[j]))
+    print("-------------------------------------군집 위치-----------------------------------------")
+    print("첫번째 군집 : ",Centroids[0])
+    print("두번째 군집 : ",Centroids[1])
+    print("세번째 군집 : ",Centroids[2])
+    print("-------------------------------------군집간 거리-----------------------------------------")
+    print("첫번째 군집, 두번째 군집 중심간 거리 : ",Euclidean_distance(Centroids[0], Centroids[1]))
+    print("두번째 군집, 세번째 군집 중심간 거리 : ",Euclidean_distance(Centroids[1], Centroids[2]))
+    print("세번째 군집, 첫번째 군집 중심간 거리 : ",Euclidean_distance(Centroids[2], Centroids[1]))
+    print("-------------------------------------군집내 거리-----------------------------------------")
+    for i in range(150):
+      print("첫번째 군집과 ",i,"번째 데이터의 거리 : ",Euclidean_distance(Centroids[0], data[i]))
+    for i in range(150):
+      print("두번째 군집과 ",i,"번째 데이터의 거리 : ",Euclidean_distance(Centroids[1], data[i]))
+    for i in range(150):
+      print("세번째 군집과 ",i,"번째 데이터의 거리 : ",Euclidean_distance(Centroids[2], data[i]))
+
 
 def normalization(Test):
     Max = 0.0
@@ -137,7 +171,6 @@ while True:
             # Error를 계산함으로써 중심점이 바뀌었는지 확인함 이는 While문의 종료에 간여함
         colors = ['r', 'g', 'b']
 
-        PRINT_DIS()
 
         for i in range(k_clusters):
             Points = np.array([Input_data_xy[j] for j in range(len(Input_data_xy)) if Lables[j] == i])
@@ -146,6 +179,9 @@ while True:
         # 끝이나면 r,g,b의 개수를 출력
         plt.scatter(Centroids[:, 0], Centroids[:, 1], marker='D', s=150)
         plt.show()
+
+
+        PRINT_DIS(Input_data_xy, Lables)
 
     elif (Choose_num == '2'):
         z = Iris[int(property_3) - 1]
@@ -193,8 +229,7 @@ while True:
         # 끝이나면 r,g,b의 개수를 출력
         ax.scatter(Centroids[:, 0], Centroids[:, 1], Centroids[:, 2], marker='D', s=150)
         plt.show()
-
-        PRINT_DIS()
+        PRINT_DIS(Input_data_xyz,Lables)
 
     elif (Choose_num == '3'):
         z = Iris[int(property_3) - 1]
@@ -227,8 +262,7 @@ while True:
             Points = np.array([Input_data_xyzs[j] for j in range(len(Input_data_xyzs)) if Lables[j] == i])
             print(colors[i], "의 개수는", len(Points[:, 1]))
             print(Centroids[i])
-
-        PRINT_DIS()
+        PRINT_DIS(Input_data_xyzs,Lables)
 
     elif (Choose_num == '4'):
         X = np.array(list(zip(Iris[0], Iris[1], Iris[2], Iris[3])))
@@ -280,4 +314,4 @@ while True:
         plt.scatter(Centroids[:, 0], Centroids[:, 1], marker='D', s=150)
         plt.show()
 
-        PRINT_DIS()
+        PRINT_DIS(Input_data_xy,Lables)
