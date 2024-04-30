@@ -14,9 +14,9 @@ model = models.detection.keypointrcnn_resnet50_fpn(pretrained=True).to(device).e
 
 IMAGE_SIZE = 800
 
-img_front = Image.open('C:/Users/wns20/Desktop/3.jpg')
+img_front = Image.open('C:/Users/wns20/Desktop/a.jpg')
 img_front = img_front.resize((IMAGE_SIZE, int(img_front.height * IMAGE_SIZE / img_front.width)))
-img_side = Image.open('C:/Users/wns20/Desktop/4.jpg')
+img_side = Image.open('C:/Users/wns20/Desktop/b.jpg')
 img_side = img_side.resize((IMAGE_SIZE, int(img_side.height * IMAGE_SIZE / img_side.width)))
 image_width, image_height = img_front.size
 
@@ -78,6 +78,12 @@ def make_3d_sceleton(sceleton_1, sceleton_2):
     extract_x = sceleton_1[:, 0]
     extract_y = sceleton_1[:, 1]
     extract_z = sceleton_2[:, 0]
+    extract_z[6] = extract_z[5]
+    extract_z[12] = extract_z[11]
+    max_ = np.max(extract_z)
+    min_ = np.min(extract_z)
+    average = (max_ + min_) / 2
+    extract_z = extract_z - average
     for i in range(len(extract_x)):
         make_3d[i][0] = extract_x[i]
         make_3d[i][1] = extract_z[i]
@@ -112,7 +118,7 @@ def show_3d_pos(pos):
     ax.set_ylabel('Side')
     ax.set_zlabel('Height')
     ax.set_xlim([0, image_width])
-    ax.set_ylim([0, image_height])
+    ax.set_ylim([-(image_width / 2), image_width / 2])
     ax.set_zlim([image_height, 0])
     plt.show()
 
@@ -121,31 +127,3 @@ Sceleton_1 = make_sceleton(img_front)
 Sceleton_2 = make_sceleton(img_side)
 make_3d_pos = make_3d_sceleton(Sceleton_1, Sceleton_2)
 show_3d_pos(make_3d_pos)
-
-
-# keypoint_names = {
-#     0: 'nose',
-#     1: 'left_eye',
-#     2: 'right_eye',
-#     3: 'left_ear',
-#     4: 'right_ear',
-#     5: 'left_shoulder',
-#     6: 'right_shoulder',
-#     7: 'left_elbow',
-#     8: 'right_elbow',
-#     9: 'left_wrist',
-#     10: 'right_wrist',
-#     11: 'left_hip',
-#     12: 'right_hip',
-#     13: 'left_knee',
-#     14: 'right_knee',
-#     15: 'left_ankle',
-#     16: 'right_ankle',
-#     17: 'neck',
-#     18: 'left_palm',
-#     19: 'right_palm',
-#     20: 'spine2(back)',
-#     21: 'spine1(waist)',
-#     22: 'left_instep',
-#     23: 'right_instep'
-# }
