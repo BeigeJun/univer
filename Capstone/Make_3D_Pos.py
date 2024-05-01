@@ -8,15 +8,34 @@ import matplotlib.pyplot as plt
 from matplotlib.path import Path
 import matplotlib.patches as patches
 # from mpl_toolkits.mplot3d import Axes3D
-
+import cv2
+import keyboard
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = models.detection.keypointrcnn_resnet50_fpn(pretrained=True).to(device).eval()
 
-IMAGE_SIZE = 800
+cap = cv2.VideoCapture(0)
 
-img_front = Image.open('C:/Users/wns20/Desktop/a.jpg')
+for i in range(2):
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        cv2.imshow('Pose Detection', frame)
+        if cv2.waitKey(1) & 0xFF == ord('c'):
+            frame = cv2.flip(frame, 1)
+            if i == 0:
+                cv2.imwrite('front.jpg', frame)
+            else:
+                cv2.imwrite('side.jpg', frame)
+            break
+
+cap.release()
+cv2.destroyAllWindows()
+
+IMAGE_SIZE = 800
+img_front = Image.open('front.jpg')
 img_front = img_front.resize((IMAGE_SIZE, int(img_front.height * IMAGE_SIZE / img_front.width)))
-img_side = Image.open('C:/Users/wns20/Desktop/b.jpg')
+img_side = Image.open('side.jpg')
 img_side = img_side.resize((IMAGE_SIZE, int(img_side.height * IMAGE_SIZE / img_side.width)))
 image_width, image_height = img_front.size
 
